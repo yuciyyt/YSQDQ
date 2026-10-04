@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>打字游戏 12 · 霓虹版</title>
+<style>
+:root{--cyan:#00f0ff;--magenta:#ff2bd6;--purple:#8b5cf6;--lime:#39ff14;--yellow:#ffe600;--bg:#05040d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;
+touch-action:manipulation;
+background:radial-gradient(circle at 20% 20%, rgba(0,240,255,.20), transparent 45%),
+radial-gradient(circle at 80% 80%, rgba(255,43,214,.20), transparent 45%),
+radial-gradient(circle at 50% 50%, #0c0a1e 0%, var(--bg) 70%);
+color:#eafcff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Microsoft YaHei",monospace;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+background-image:linear-gradient(rgba(0,240,255,.055) 1px,transparent 1px),
+linear-gradient(90deg,rgba(255,43,214,.055) 1px,transparent 1px);
+background-size:44px 44px;mask-image:radial-gradient(circle at 50% 50%,#000 30%,transparent 78%)}
+.wrap{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;max-width:420px}
+h1{font-size:20px;letter-spacing:.22em;margin:0 0 12px;color:#fff;
+text-shadow:0 0 6px var(--lime),0 0 18px var(--cyan),0 0 42px rgba(0,240,255,.5)}
+.hud{display:flex;gap:16px;margin-bottom:14px;font-size:12px;letter-spacing:.1em;color:#9ef6ff;flex-wrap:wrap;justify-content:center}
+.hud b{color:#fff;text-shadow:0 0 10px var(--magenta)}
+.panel{padding:22px 18px;border-radius:18px;background:rgba(10,8,26,.7);border:1px solid rgba(0,240,255,.32);
+box-shadow:0 0 0 1px rgba(255,43,214,.16) inset,0 0 24px rgba(0,240,255,.26),0 0 60px rgba(139,92,246,.22);
+display:flex;flex-direction:column;align-items:center;width:100%}
+#word{font-size:min(9vw,36px);font-weight:800;letter-spacing:4px;margin:4px 0 18px;min-height:44px}
+#word span{color:#5b6b8c}
+#word span.ok{color:var(--lime);text-shadow:0 0 10px var(--lime),0 0 26px rgba(57,255,20,.7)}
+#word span.now{color:var(--magenta);text-shadow:0 0 12px var(--magenta);border-bottom:3px solid var(--magenta)}
+#input{width:100%;padding:14px;border-radius:12px;border:1px solid rgba(0,240,255,.45);
+background:rgba(3,2,10,.85);color:#eafcff;font-family:inherit;font-size:18px;text-align:center;outline:none;
+box-shadow:0 0 14px rgba(0,240,255,.25)}
+#bar{width:100%;height:8px;background:rgba(255,255,255,.06);border-radius:5px;overflow:hidden;margin-top:16px;
+border:1px solid rgba(0,240,255,.2)}
+#fill{height:100%;width:100%;background:linear-gradient(90deg,#00f0ff,#ff2bd6);box-shadow:0 0 14px rgba(0,240,255,.7);transition:width .1s linear}
+#msg{min-height:24px;margin-top:14px;font-size:13px;color:var(--cyan);text-shadow:0 0 10px rgba(0,240,255,.7);text-align:center}
+#ctl{display:flex;gap:14px;margin-top:14px}
+.btn{padding:12px 24px;border-radius:14px;border:1px solid rgba(0,240,255,.5);background:rgba(0,240,255,.08);
+color:#eafcff;font-family:inherit;font-size:13px;letter-spacing:.14em;box-shadow:0 0 16px rgba(0,240,255,.3);user-select:none}
+.btn.re{border-color:var(--magenta);background:rgba(255,43,214,.12);text-shadow:0 0 10px var(--magenta)}
+.tip{margin-top:12px;font-size:11px;color:#7c8fb3;text-align:center;line-height:1.7}
+.tip span{color:var(--cyan)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>NEON TYPER</h1>
+  <div class="hud">得分 <b id="score">0</b>　连击 <b id="combo">0</b>　正确率 <b id="acc">100</b>%　时间 <b id="time">60</b>s</div>
+  <div class="panel">
+    <div id="word"></div>
+    <input id="input" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="点这里输入…">
+    <div id="bar"><div id="fill"></div></div>
+    <div id="msg">点输入框开始，每词限时 5 秒</div>
+    <div id="ctl">
+      <div class="btn" id="skip">⏭ 跳过</div>
+      <div class="btn re" id="reset">🔄 重开</div>
+    </div>
+  </div>
+  <div class="tip">用手机键盘输入英文单词，输入正确自动得分</div>
+</div>
+<script>
+const WORDS=['apple','banana','orange','computer','keyboard','window','garden','planet','summer','piano',
+'mountain','river','yellow','rocket','pencil','library','dragon','coffee','guitar','forest',
+'silver','diamond','thunder','melody','ocean','tiger','candle','cloud','storm','crystal'];
+const wordEl=document.getElementById('word'),input=document.getElementById('input');
+let cur='',score=0,combo=0,typed=0,right=0,total=60,left=5,tick,run,over;
+function init(){
+  score=0;combo=0;typed=0;right=0;left=5;over=false;run=false;total=60;
+  upd();next();clearInterval(tick);
+  document.getElementById('msg').textContent='点输入框开始，每词限时 5 秒';
+  document.getElementById('fill').style.width='100%';
+}
+function upd(){
+  document.getElementById('score').textContent=score;
+  document.getElementById('combo').textContent=combo;
+  document.getElementById('acc').textContent=typed?Math.round(right/typed*100):100;
+  document.getElementById('time').textContent=Math.ceil(total);
+}
+function next(){
+  cur=WORDS[Math.floor(Math.random()*WORDS.length)];
+  input.value='';left=5;
+  document.getElementById('fill').style.width='100%';
+  paint('');
+}
+function paint(val){
+  wordEl.innerHTML='';
+  cur.split('').forEach((ch,i)=>{
+    const s=document.createElement('span');
+    s.textContent=ch;
+    if(i<val.length)s.className=val[i]===ch?'ok':'now';
+    else if(i===val.length)s.className='now';
+    wordEl.appendChild(s);
+  });
+}
+function start(){
+  if(run||over)return;
+  run=true;
+  tick=setInterval(()=>{
+    total-=0.1;left-=0.1;
+    document.getElementById('fill').style.width=Math.max(0,left/5*100)+'%';
+    if(total<=0){total=0;upd();end();return;}
+    if(left<=0){combo=0;typed++;next();}
+    upd();
+  },100);
+}
+function end(){
+  run=false;over=true;clearInterval(tick);
+  document.getElementById('msg').textContent='⏰ TIME UP！得分 '+score+'，正确率 '+
+    (typed?Math.round(right/typed*100):100)+'%，点「重开」再来';
+}
+input.addEventListener('input',()=>{
+  start();
+  if(!cur)return;
+  let v=input.value;
+  if(v.length>cur.length)v=v.slice(0,cur.length);
+  paint(v);
+  if(v===cur){
+    const add=10+combo*2;
+    score+=add;combo++;typed++;right++;left=5;
+    document.getElementById('msg').textContent='✅ +'+add+' 分';
+    upd();next();
+  }
+  input.value=v;
+});
+input.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&cur&&input.value&&input.value!==cur){typed++;combo=0;upd();next();}
+});
+document.getElementById('skip').addEventListener('click',()=>{
+  if(cur){typed++;combo=0;upd();next();start();}
+});
+document.getElementById('reset').addEventListener('click',()=>{init();input.focus();});
+addEventListener('keydown',e=>{if(e.key.toLowerCase()==='r')init();});
+init();
+</script>
+</body>
+</html>

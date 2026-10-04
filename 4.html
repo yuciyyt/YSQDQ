@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0a1024">
+<title>飞行棋 · NEON LUDO</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:radial-gradient(circle at 50% 0%,#16224c,#05070f 70%);color:#eaf3ff;overflow:hidden;
+  font-family:"Segoe UI",system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;
+  display:flex;flex-direction:column;align-items:center;
+  padding:calc(5px + env(safe-area-inset-top)) 8px calc(5px + env(safe-area-inset-bottom))}
+header{text-align:center;width:100%}
+h1{font-size:clamp(15px,4.2vw,22px);font-weight:900;letter-spacing:.24em;
+  background:linear-gradient(92deg,#4fd8ff,#ff4fa3,#ffd166,#6cf0a8);-webkit-background-clip:text;background-clip:text;
+  color:transparent;filter:drop-shadow(0 0 14px rgba(79,216,255,.4))}
+.turnbar{margin-top:2px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;min-height:20px}
+.turnbar .dot{width:12px;height:12px;border-radius:50%}
+.turnbar b{letter-spacing:.05em}
+.log{margin-top:3px;font-size:11.5px;color:#9fb8dd;min-height:34px;line-height:1.55;letter-spacing:.02em}
+.log i{font-style:normal;color:#ffd166}
+.hint{margin-top:2px;font-size:12.5px;color:#8fe3c8;letter-spacing:.06em;min-height:18px;font-weight:700}
+canvas{display:block;margin:4px auto;border-radius:13px;
+  box-shadow:0 0 30px rgba(79,216,255,.16),0 12px 28px rgba(0,0,0,.6);touch-action:none}
+.bar{display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:97vw}
+button,select{font-family:inherit;cursor:pointer;font-size:12.5px;font-weight:800;letter-spacing:.04em;
+  padding:11px 14px;border-radius:11px;color:#eaf3ff;border:1px solid rgba(79,216,255,.4);
+  background:linear-gradient(180deg,rgba(79,216,255,.2),rgba(79,216,255,.05));transition:.15s}
+button:hover,select:hover{border-color:rgba(79,216,255,.85)}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.4;filter:grayscale(.7);cursor:not-allowed}
+select{background-color:#101a38;color:#eaf3ff;padding:11px 5px}
+#roll{font-size:15px;padding:13px 22px;min-width:190px;border-width:2px;
+  box-shadow:0 0 22px rgba(255,255,255,.12)}
+#bgmBtn{position:fixed;right:8px;top:calc(8px + env(safe-area-inset-top));z-index:8;width:38px;height:38px;
+  padding:0;border-radius:50%;font-size:15px;display:grid;place-items:center;
+  border:1px solid rgba(79,216,255,.45);background:rgba(10,16,36,.8);color:#eaf3ff}
+.ov{position:fixed;inset:0;z-index:6;display:none;place-items:center;padding:18px;overflow:auto;
+  background:radial-gradient(circle at 50% 40%,rgba(10,16,36,.86),rgba(3,4,10,.96));backdrop-filter:blur(6px)}
+.ov.on{display:grid}
+.card{width:min(430px,92vw);padding:22px 20px;border-radius:20px;text-align:center;
+  background:linear-gradient(160deg,rgba(20,32,64,.96),rgba(8,10,22,.97));
+  border:1px solid rgba(79,216,255,.36);box-shadow:0 0 44px rgba(79,216,255,.18)}
+.card h2{font-size:24px;font-weight:900;letter-spacing:.18em;color:#eef6ff}
+.card p{margin-top:11px;font-size:13.5px;color:#9fb8dd;line-height:1.85}
+.card p b{color:#ffd166}
+.card .rule{margin-top:12px;text-align:left;font-size:13px;line-height:2.1;color:#a8c0e0}
+.card .rule b{color:#ffd166}
+.card .row{margin-top:18px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<button id="bgmBtn" title="背景音乐">🔊</button>
+<header>
+  <h1>飞 行 棋</h1>
+  <div class="turnbar" id="turnbar"></div>
+  <div class="hint" id="hint">点下面的骰子开始</div>
+  <div class="log" id="log"></div>
+</header>
+<canvas id="cv"></canvas>
+<div class="bar">
+  <button id="roll">🎲 掷 骰 子</button>
+  <select id="pnum">
+    <option value="2">2 人</option>
+    <option value="3">3 人</option>
+    <option value="4" selected>4 人</option>
+  </select>
+  <select id="mm">
+    <option value="local">同屏对战</option>
+    <option value="ai" selected>人机对战</option>
+  </select>
+  <button id="help">规则</button>
+  <button id="restart">重 开</button>
+</div>
+
+<div class="ov" id="ov"><div class="card">
+  <h2 id="ovt">胜 利</h2>
+  <p id="ovp"></p>
+  <div class="row"><button id="ovb" style="background:linear-gradient(180deg,rgba(255,79,163,.3),rgba(255,209,102,.12));border-color:rgba(255,79,163,.55)">再 来 一 局</button></div>
+</div></div>
+<div class="ov" id="hp"><div class="card">
+  <h2>怎 么 玩</h2>
+  <div class="rule">
+    <b>三步就会：</b><br>
+    ① 点【🎲 掷骰子】<br>
+    ② 屏幕上<b>闪金圈</b>的飞机就是能动的，点它<br>
+    ③ 看它自己飞过去<br><br>
+    <b>规则：</b><br>
+    • 飞机在基地里 → 掷出 <b>6</b> 才能起飞<br>
+    • 掷出 <b>6</b> 走完可以<b>再掷一次</b><br>
+    • 落在对手飞机上 → 把对手<b>撞回基地</b><br>
+    • 绕场一圈后飞进<b>自己的彩色跑道</b><br>
+    • 进终点必须<b>点数刚好</b>，多了就停在原地<br>
+    • 4 架飞机全部到达终点 → 获胜<br>
+    • 只有一个飞机能动时，会<b>自动帮你走</b>
+  </div>
+  <div class="row"><button id="hpb" style="background:linear-gradient(180deg,rgba(255,79,163,.3),rgba(255,209,102,.12));border-color:rgba(255,79,163,.55)">知 道 了</button></div>
+</div></div>
+
+<script>
+'use strict';
+/* ===== 背景音乐（纯代码合成） ===== */
+var BGM = {
+  ctx:null, ready:false, on:true, vol:0.13, step:0, next:0, timer:null, mood:'battle', noise:null, mus:null, master:null,
+  moods:{
+    calm:  { root:110,   chords:[0,-2,-4,-5], pent:[0,3,5,7,10,12], eighth:0.215, hat:0.24, bass:0.26, arp:0.05 },
+    jump:  { root:130.8, chords:[0,5,-2,3],   pent:[0,2,4,7,9,12],  eighth:0.155, hat:0.50, bass:0.30, arp:0.06 },
+    tense: { root:98,    chords:[0,-1,-3,-5], pent:[0,1,3,5,7,10],  eighth:0.185, hat:0.22, bass:0.27, arp:0.05 },
+    battle:{ root:110,   chords:[0,-2,-4,-5], pent:[0,3,5,7,10,12], eighth:0.165, hat:0.55, bass:0.30, arp:0.06 },
+    cute:  { root:146.8, chords:[0,4,-3,2],   pent:[0,2,4,5,7,12],  eighth:0.170, hat:0.40, bass:0.24, arp:0.05 }
+  },
+  init:function(mood){
+    if (mood) this.mood = mood;
+    if (this.ctx){ this.resume(); return; }
+    try{
+      var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      var a = this.ctx = new AC();
+      var mg = this.master = a.createGain(); mg.gain.value = 0.55; mg.connect(a.destination);
+      var ms = this.mus = a.createGain(); ms.gain.value = 0; ms.connect(mg);
+      var n = Math.floor(a.sampleRate), b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
+      for (var i=0;i<n;i++) d[i] = Math.random()*2 - 1;
+      this.noise = b; this.ready = true;
+      var self = this;
+      this.timer = setInterval(function(){ self.tick(); }, 60);
+      this.apply();
+    }catch(e){ this.ready = false; }
+  },
+  resume:function(){ try{ if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); }catch(e){} },
+  apply:function(){
+    if (!this.ready) return;
+    var t = this.ctx.currentTime;
+    this.mus.gain.cancelScheduledValues(t);
+    this.mus.gain.setTargetAtTime(this.on ? this.vol : 0, t, 0.3);
+  },
+  toggle:function(){
+    this.on = !this.on;
+    try{ localStorage.setItem('bgm_on', this.on ? '1' : '0'); }catch(e){}
+    this.apply(); this.sync(); return this.on;
+  },
+  sync:function(){ var b = document.getElementById('bgmBtn'); if (b) b.textContent = this.on ? '🔊' : '🔇'; },
+  osc:function(type, f, dur, vol, when){
+    if (!this.ready) return;
+    var a = this.ctx, t = (when === undefined) ? a.currentTime : when;
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.setValueAtTime(Math.max(20, f), t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.mus); o.start(t); o.stop(t + dur + 0.03);
+  },
+  hat:function(when, vol){
+    if (!this.ready) return;
+    var a = this.ctx;
+    var s = a.createBufferSource(); s.buffer = this.noise; s.loop = true;
+    var fl = a.createBiquadFilter(); fl.type = 'highpass'; fl.frequency.value = 6800;
+    var g = a.createGain();
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.linearRampToValueAtTime(vol, when + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
+    s.connect(fl); fl.connect(g); g.connect(this.mus); s.start(when); s.stop(when + 0.06);
+  },
+  tick:function(){
+    if (!this.ready || !this.on) return;
+    this.resume();
+    var a = this.ctx, m = this.moods[this.mood] || this.moods.calm;
+    if (this.next < a.currentTime) this.next = a.currentTime + 0.06;
+    while (this.next < a.currentTime + 0.35){
+      var root = m.chords[((this.step / 8) | 0) % m.chords.length];
+      var f = function(s){ return m.root * Math.pow(2, s / 12); };
+      if (this.step % 8 === 0){
+        this.osc('triangle', f(root - 12), 0.62, m.bass, this.next);
+        this.osc('sawtooth', f(root - 24), 0.66, m.bass * 0.32, this.next);
+      }
+      if (this.step % 2 === 0) this.osc('square', f(root + 12 + m.pent[(this.step * 3) % m.pent.length]), 0.14, m.arp, this.next);
+      if (this.step % 8 === 6) this.osc('triangle', f(root + 24 + m.pent[this.step % m.pent.length]), 0.22, m.arp * 0.85, this.next);
+      this.hat(this.next, this.step % 4 === 0 ? m.hat : m.hat * 0.45);
+      this.step = (this.step + 1) % 32;
+      this.next += m.eighth;
+    }
+  }
+};
+var GAME_MOOD = 'battle';
+try{ BGM.on = (localStorage.getItem('bgm_on') !== '0'); }catch(e){ BGM.on = true; }
+function bgmBoot(){
+  BGM.init(GAME_MOOD); BGM.sync();
+  var b = document.getElementById('bgmBtn');
+  if (b && !b._wired){ b._wired = true; b.addEventListener('click', function(){ BGM.init(GAME_MOOD); BGM.toggle(); }); }
+}
+window.addEventListener('pointerdown', bgmBoot, { once:true });
+window.addEventListener('keydown', bgmBoot, { once:true });
+
+/* ================= 棋盘数据 ================= */
+var TRACK = [
+  [6,1],[6,2],[6,3],[6,4],[6,5],
+  [5,6],[4,6],[3,6],[2,6],[1,6],[0,6],
+  [0,7],
+  [0,8],[1,8],[2,8],[3,8],[4,8],[5,8],
+  [6,9],[6,10],[6,11],[6,12],[6,13],[6,14],
+  [7,14],
+  [8,14],[8,13],[8,12],[8,11],[8,10],[8,9],
+  [9,8],[10,8],[11,8],[12,8],[13,8],[14,8],
+  [14,7],
+  [14,6],[13,6],[12,6],[11,6],[10,6],[9,6],
+  [8,5],[8,4],[8,3],[8,2],[8,1],[8,0],
+  [7,0],
+  [6,0]
+];
+var HOMEP = [
+  [[7,1],[7,2],[7,3],[7,4],[7,5],[7,6]],
+  [[1,7],[2,7],[3,7],[4,7],[5,7],[6,7]],
+  [[7,13],[7,12],[7,11],[7,10],[7,9],[7,8]],
+  [[13,7],[12,7],[11,7],[10,7],[9,7],[8,7]]
+];
+var BASE = [
+  [[1,1],[1,3],[3,1],[3,3]],
+  [[1,10],[1,12],[3,10],[3,12]],
+  [[10,10],[10,12],[12,10],[12,12]],
+  [[10,1],[10,3],[12,1],[12,3]]
+];
+var CORNER = [[0,0],[0,9],[9,9],[9,0]];
+var START = [0, 13, 26, 39];
+var PCOL = ['#ff4f5e','#4fd8ff','#ffd166','#6cf0a8'];
+var PNAME = ['红方','蓝方','黄方','绿方'];
+var GOAL = 58;
+
+var planes = [], turn = 0, dice = 0, over = false;
+var ST = 'idle';                     /* idle | rolling | choosing | moving */
+var opts = [], autoPick = false, chosen = null;
+var rollT = 0, rollFinal = 0, mvT = 0, mvQueue = [], mvTarget = 0, mvKeep = false, flashT = 0;
+var logs = [], pnum = 4, mm = 'ai', aiTimer = null;
+var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+var CELL = 26, PAD = 6, DPR = 1;
+
+function isAI(p){ return mm === 'ai' && p !== 0; }
+function setup(){
+  planes = [];
+  for (var p=0;p<4;p++){
+    planes.push([]);
+    for (var k=0;k<4;k++) planes[p].push({ p:p, pos:-1, k:k });
+  }
+  turn = 0; dice = 0; over = false; ST = 'idle'; opts = []; chosen = null;
+  anchorP = 0;
+  logs = ['游戏开始，' + PNAME[0] + '先手'];
+  if (aiTimer){ clearTimeout(aiTimer); aiTimer = null; }
+  document.getElementById('ov').classList.remove('on');
+  syncUI(); draw();
+  maybeAI();
+}
+function addLog(s){
+  logs.push(s);
+  if (logs.length > 3) logs.shift();
+  renderLog();
+}
+function renderLog(){
+  var html = '';
+  for (var i=0;i<logs.length;i++){
+    html += (i === logs.length-1 ? '<i>' + logs[i] + '</i>' : logs[i]);
+    if (i < logs.length-1) html += '<br>';
+  }
+  document.getElementById('log').innerHTML = html;
+}
+function syncUI(){
+  var tb = document.getElementById('turnbar');
+  tb.innerHTML = '<span class="dot" style="background:' + PCOL[turn] + '"></span>' +
+    '<b style="color:' + PCOL[turn] + '">' + PNAME[turn] + '</b>' +
+    (isAI(turn) ? '<span style="color:#9fb8dd">（电脑）</span>' : '') +
+    (dice ? '<span style="color:#ffd166">· 掷出 ' + dice + '</span>' : '');
+  var h = document.getElementById('hint');
+  if (over) h.textContent = '本局结束';
+  else if (ST === 'idle') h.textContent = isAI(turn) ? '电脑掷骰子中…' : '① 点下面的骰子';
+  else if (ST === 'rolling') h.textContent = '骰子转起来了…';
+  else if (ST === 'choosing') h.textContent = '② 点【闪金圈】的飞机';
+  else h.textContent = '③ 飞行中…';
+  var b = document.getElementById('roll');
+  b.disabled = over || ST !== 'idle' || isAI(turn);
+  b.textContent = '🎲 掷 骰 子';
+  b.style.borderColor = PCOL[turn];
+  b.style.background = 'linear-gradient(180deg,' + PCOL[turn] + '55,' + PCOL[turn] + '12)';
+}
+
+/* ---------- 位置换算 ---------- */
+function cellOf(p, pos){
+  if (pos < 0) return null;
+  if (pos <= 51) return TRACK[(START[p] + pos) % 52];
+  if (pos <= 57) return HOMEP[p][pos - 52];
+  return [7,7];
+}
+function enemyAt(p, pos){
+  if (pos < 0 || pos > 51) return [];
+  var rc = cellOf(p, pos), out = [];
+  for (var q=0;q<pnum;q++){
+    if (q === p) continue;
+    for (var k=0;k<4;k++){
+      var pl = planes[q][k];
+      if (pl.pos < 0 || pl.pos > 51) continue;
+      var rc2 = cellOf(q, pl.pos);
+      if (rc2[0] === rc[0] && rc2[1] === rc[1]) out.push(pl);
+    }
+  }
+  return out;
+}
+function legalOpts(p, d){
+  var out = [];
+  for (var k=0;k<4;k++){
+    var pl = planes[p][k];
+    if (pl.pos === GOAL) continue;
+    if (pl.pos === -1){
+      if (d === 6) out.push({ k:k, kind:'launch', to:0 });
+      continue;
+    }
+    var np = pl.pos + d;
+    if (np > GOAL) continue;
+    out.push({ k:k, kind:'move', to:np });
+  }
+  return out;
+}
+
+/* ---------- 回合流程 ---------- */
+function doRoll(){
+  if (over || ST !== 'idle') return;
+  if (aiTimer){ clearTimeout(aiTimer); aiTimer = null; }
+  ST = 'rolling';
+  rollT = 0;
+  rollFinal = 1 + Math.floor(Math.random() * 6);
+  dice = 0;
+  syncUI();
+  if (BGM.ready) BGM.osc('square', 380, 0.08, 0.045);
+}
+function afterRoll(){
+  dice = rollFinal;
+  var o = legalOpts(turn, dice);
+  if (!o.length){
+    addLog(PNAME[turn] + ' 掷出 ' + dice + '，没有能走的飞机');
+    nextTurn(dice === 6);
+    return;
+  }
+  opts = o;
+  if (o.length === 1){
+    autoPick = true;
+    ST = 'choosing';
+    syncUI(); draw();
+    aiTimer = setTimeout(function(){ aiTimer = null; startMove(o[0], dice === 6); }, 480);
+    return;
+  }
+  autoPick = false;
+  if (isAI(turn)){
+    ST = 'choosing'; syncUI();
+    aiTimer = setTimeout(function(){
+      aiTimer = null;
+      var pick = aiChoose(turn, o);
+      startMove(pick, dice === 6);
+    }, 520);
+  } else {
+    ST = 'choosing';
+    syncUI(); draw();
+  }
+}
+function aiChoose(p, list){
+  var best = list[0], bv = -1e9;
+  for (var i=0;i<list.length;i++){
+    var o = list[i], v = 0;
+    if (o.kind === 'launch') v = 45;
+    else {
+      v = o.to * 0.7;
+      if (o.to <= 51 && enemyAt(p, o.to).length) v += 70;
+      if (o.to === GOAL) v += 90;
+    }
+    v += Math.random() * 6;
+    if (v > bv){ bv = v; best = o; }
+  }
+  return best;
+}
+function startMove(o, keep){
+  if (over) return;
+  var pl = planes[turn][o.k];
+  mvKeep = keep;
+  mvTarget = o.to;
+  mvQueue = [];
+  if (o.kind === 'launch'){
+    mvQueue.push(0);
+  } else {
+    for (var s = pl.pos + 1; s <= o.to; s++) mvQueue.push(s);
+  }
+  chosen = pl;
+  ST = 'moving'; mvT = 0;
+  syncUI();
+}
+function stepMove(){
+  if (!mvQueue.length) return;
+  var pl = chosen;
+  pl.pos = mvQueue.shift();
+  if (BGM.ready && (mvQueue.length % 2 === 0)) BGM.osc('sine', 900 + pl.pos * 4, 0.035, 0.025);
+  if (!mvQueue.length) endMove();
+  draw();
+}
+function endMove(){
+  var pl = chosen, p = pl.p;
+  var msg = PNAME[p] + ' 掷出 ' + dice + '，' + (pl.pos === GOAL ? '一架飞机抵达终点！' : '前进到第 ' + pl.pos + ' 格');
+  if (pl.pos <= 51){
+    var hits = enemyAt(p, pl.pos);
+    if (hits.length){
+      for (var i=0;i<hits.length;i++) hits[i].pos = -1;
+      msg = PNAME[p] + ' 撞回' + hits.length + '架 ' + PNAME[hits[0].p] + ' 飞机！';
+      flashT = 1;
+      if (BGM.ready) BGM.osc('sawtooth', 300, 0.22, 0.07);
+    }
+  } else if (pl.pos === GOAL){
+    if (BGM.ready) BGM.osc('triangle', 980, 0.18, 0.07);
+  }
+  addLog(msg);
+  chosen = null; opts = [];
+  if (checkWin(p)) return;
+  nextTurn(mvKeep);
+}
+function nextTurn(again){
+  if (over) return;
+  ST = 'idle'; dice = 0;
+  if (again){
+    addLog(PNAME[turn] + ' 掷出 6，再掷一次！');
+  } else {
+    turn = (turn + 1) % pnum;
+  }
+  syncUI(); draw();
+  maybeAI();
+}
+function maybeAI(){
+  if (over) return;
+  if (!isAI(turn)) return;
+  if (aiTimer) clearTimeout(aiTimer);
+  aiTimer = setTimeout(function(){ aiTimer = null; doRoll(); }, 600);
+}
+function checkWin(p){
+  for (var k=0;k<4;k++) if (planes[p][k].pos !== GOAL) return false;
+  over = true; ST = 'idle';
+  document.getElementById('ovt').textContent = '🎉 ' + PNAME[p] + ' 获 胜';
+  document.getElementById('ovp').innerHTML = '4 架飞机全部抵达终点！';
+  document.getElementById('ov').classList.add('on');
+  syncUI();
+  if (BGM.ready){
+    var t0 = BGM.ctx.currentTime;
+    BGM.osc('triangle', 523, 0.26, 0.09, t0);
+    BGM.osc('triangle', 784, 0.26, 0.09, t0 + 0.12);
+    BGM.osc('triangle', 1046, 0.42, 0.09, t0 + 0.24);
+  }
+  return true;
+}
+
+/* ---------- 绘制 ---------- */
+var anchorP = 0;
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  var availW = window.innerWidth - 16;
+  var availH = window.innerHeight - 210;
+  CELL = Math.max(15, Math.floor(Math.min(availW, availH) / 15.5));
+  PAD = Math.round(CELL * 0.45);
+  var w = CELL * 15 + PAD * 2;
+  cv.width = Math.round(w * DPR); cv.height = Math.round(w * DPR);
+  cv.style.width = w + 'px'; cv.style.height = w + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  draw();
+}
+window.addEventListener('resize', resize);
+function PX(c){ return PAD + c * CELL + CELL / 2; }
+function PY(r){ return PAD + r * CELL + CELL / 2; }
+
+function draw(){
+  var w = CELL * 15 + PAD * 2;
+  ctx.clearRect(0, 0, w, w);
+  var g = ctx.createLinearGradient(0, 0, 0, w);
+  g.addColorStop(0, '#16224c'); g.addColorStop(.5, '#0e1734'); g.addColorStop(1, '#070b1a');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, w);
+  var p, k, i;
+  /* 基地 */
+  for (p=0;p<pnum;p++){
+    var c0 = CORNER[p];
+    ctx.globalAlpha = .18; ctx.fillStyle = PCOL[p];
+    ctx.fillRect(PAD + c0[1]*CELL, PAD + c0[0]*CELL, CELL*6, CELL*6);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = PCOL[p]; ctx.lineWidth = 2;
+    ctx.strokeRect(PAD + c0[1]*CELL + 1, PAD + c0[0]*CELL + 1, CELL*6 - 2, CELL*6 - 2);
+    for (k=0;k<4;k++){
+      var rc = BASE[p][k];
+      ctx.fillStyle = 'rgba(255,255,255,.10)';
+      ctx.beginPath();
+      ctx.arc(PX(rc[1]), PY(rc[0]), CELL*.42, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.fillStyle = PCOL[p];
+    ctx.font = '900 ' + Math.round(CELL*.7) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(PNAME[p], PAD + (c0[1]+3)*CELL, PAD + (c0[0]+5)*CELL*0.92);
+  }
+  /* 跑道 */
+  for (i=0;i<52;i++){
+    var rc2 = TRACK[i];
+    var X = PAD + rc2[1]*CELL, Y = PAD + rc2[0]*CELL;
+    ctx.fillStyle = 'rgba(255,255,255,.10)';
+    ctx.fillRect(X + 1, Y + 1, CELL - 2, CELL - 2);
+    ctx.strokeStyle = 'rgba(150,190,255,.25)'; ctx.lineWidth = 1;
+    ctx.strokeRect(X + 1.5, Y + 1.5, CELL - 3, CELL - 3);
+  }
+  /* 起点格 */
+  for (p=0;p<pnum;p++){
+    var sc = TRACK[START[p]];
+    ctx.fillStyle = PCOL[p] + '66';
+    ctx.fillRect(PAD + sc[1]*CELL + 1, PAD + sc[0]*CELL + 1, CELL - 2, CELL - 2);
+    ctx.strokeStyle = PCOL[p]; ctx.lineWidth = 2;
+    ctx.strokeRect(PAD + sc[1]*CELL + 1.5, PAD + sc[0]*CELL + 1.5, CELL - 3, CELL - 3);
+    /* 起飞箭头 */
+    var nx = TRACK[(START[p] + 1) % 52];
+    var ax = PX(sc[1]), ay = PY(sc[0]);
+    var bx = PX(nx[1]), by = PY(nx[0]);
+    var ang = Math.atan2(by - ay, bx - ax);
+    ctx.save();
+    ctx.translate(ax, ay);
+    ctx.rotate(ang);
+    ctx.beginPath();
+    ctx.moveTo(CELL*.24, 0);
+    ctx.lineTo(-CELL*.06, -CELL*.18);
+    ctx.lineTo(-CELL*.06, CELL*.18);
+    ctx.closePath();
+    ctx.fillStyle = PCOL[p];
+    ctx.fill();
+    ctx.restore();
+  }
+  /* 归家跑道 */
+  for (p=0;p<pnum;p++){
+    for (var h=0;h<6;h++){
+      var rc3 = HOMEP[p][h];
+      var X3 = PAD + rc3[1]*CELL, Y3 = PAD + rc3[0]*CELL;
+      ctx.globalAlpha = .55;
+      ctx.fillStyle = PCOL[p];
+      ctx.fillRect(X3 + 1, Y3 + 1, CELL - 2, CELL - 2);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 1;
+      ctx.strokeRect(X3 + 1.5, Y3 + 1.5, CELL - 3, CELL - 3);
+    }
+  }
+  /* 中央终点 */
+  ctx.save();
+  ctx.translate(PX(7), PY(7));
+  for (var q=0;q<4;q++){
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    var a0 = q * Math.PI / 2;
+    ctx.arc(0, 0, CELL * 3.4, a0, a0 + Math.PI / 2);
+    ctx.closePath();
+    ctx.globalAlpha = .55;
+    ctx.fillStyle = PCOL[q];
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+  /* 可走点提示 */
+  if (ST === 'choosing' && !isAI(turn)){
+    for (i=0;i<opts.length;i++){
+      var o = opts[i];
+      var rcd = cellOf(turn, o.to);
+      if (!rcd) continue;
+      var gx = PX(rcd[1]), gy = PY(rcd[0]);
+      ctx.beginPath();
+      ctx.arc(gx, gy, CELL*.44, 0, Math.PI*2);
+      ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2.6; ctx.stroke();
+      ctx.fillStyle = 'rgba(255,209,102,.22)'; ctx.fill();
+      ctx.fillStyle = '#ffe08a';
+      ctx.font = '900 ' + Math.round(CELL*.62) + 'px ui-monospace,monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(dice), gx, gy + 1);
+    }
+  }
+  /* 飞机 */
+  var pulse = 0.5 + 0.5 * Math.sin(performance.now() / 260);
+  for (p=0;p<pnum;p++){
+    for (k=0;k<4;k++){
+      var pl = planes[p][k];
+      if (chosen === pl) continue;
+      var rc5 = (pl.pos === -1) ? BASE[p][k] : cellOf(p, pl.pos);
+      if (!rc5) continue;
+      var movable = (ST === 'choosing') && (p === turn);
+      var canDo = false;
+      if (movable){
+        for (i=0;i<opts.length;i++) if (opts[i].k === k) canDo = true;
+      }
+      if (canDo){
+        ctx.beginPath();
+        ctx.arc(PX(rc5[1]), PY(rc5[0]), CELL*.5 + pulse*CELL*.12, 0, Math.PI*2);
+        ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 3; ctx.stroke();
+      }
+      drawPlane(PX(rc5[1]), PY(rc5[0]), PCOL[p], (pl.pos === -1 ? .5 : 1), canDo, pl.pos);
+    }
+  }
+  /* 正在移动的飞机（最后画，在最上层） */
+  if (chosen){
+    var rc6 = cellOf(chosen.p, chosen.pos);
+    if (rc6){
+      var hop = mvQueue.length ? Math.sin(Math.min(1, mvT / 0.085) * Math.PI) * CELL * .35 : 0;
+      drawPlane(PX(rc6[1]), PY(rc6[0]) - hop, PCOL[chosen.p], 1, true, chosen.pos);
+    }
+  }
+  /* 撞击闪红 */
+  if (flashT > 0){
+    ctx.fillStyle = 'rgba(255,60,90,' + (flashT * 0.3).toFixed(3) + ')';
+    ctx.fillRect(0, 0, w, w);
+  }
+  /* 骰子 */
+  var dw = CELL * 2.4, dx = w - PAD - dw - 2, dy = PAD + 2;
+  ctx.fillStyle = 'rgba(255,255,255,.95)';
+  roundRect(dx, dy, dw, dw, CELL * .45); ctx.fill();
+  ctx.strokeStyle = PCOL[turn]; ctx.lineWidth = 3;
+  roundRect(dx, dy, dw, dw, CELL * .45); ctx.stroke();
+  ctx.fillStyle = '#101828';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (dice > 0){
+    ctx.font = '900 ' + Math.round(CELL * 1.5) + 'px ui-monospace,Consolas,monospace';
+    ctx.fillText(String(dice), dx + dw/2, dy + dw/2 + 2);
+  } else {
+    ctx.font = Math.round(CELL * 1.0) + 'px sans-serif';
+    ctx.fillText('🎲', dx + dw/2, dy + dw/2 + 2);
+  }
+}
+function roundRect(x, y, w2, h2, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w2 - r, y); ctx.arcTo(x + w2, y, x + w2, y + r, r);
+  ctx.lineTo(x + w2, y + h2 - r); ctx.arcTo(x + w2, y + h2, x + w2 - r, y + h2, r);
+  ctx.lineTo(x + r, y + h2); ctx.arcTo(x, y + h2, x, y + h2 - r, r);
+  ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+function drawPlane(X, Y, col, alpha, glow, pos){
+  var R = CELL * .36;
+  ctx.globalAlpha = alpha;
+  if (glow){
+    ctx.beginPath();
+    ctx.arc(X, Y, R * 1.75, 0, Math.PI * 2);
+    ctx.fillStyle = col + '33';
+    ctx.fill();
+  }
+  ctx.save();
+  ctx.translate(X, Y);
+  ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -R * 1.1);
+  ctx.lineTo(R * 0.95, R * 0.7);
+  ctx.lineTo(0, R * 0.3);
+  ctx.lineTo(-R * 0.95, R * 0.7);
+  ctx.closePath();
+  var g = ctx.createLinearGradient(0, -R, 0, R);
+  g.addColorStop(0, '#ffffff'); g.addColorStop(.45, col); g.addColorStop(1, 'rgba(0,0,0,.5)');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.restore();
+  ctx.lineWidth = glow ? 2.2 : 1.1;
+  ctx.strokeStyle = glow ? '#ffd166' : 'rgba(255,255,255,.6)';
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+/* ---------- 主循环 ---------- */
+var last = 0;
+function loop(t){
+  var dt = Math.min(0.05, (t - last) / 1000 || 0);
+  last = t;
+  if (flashT > 0) flashT = Math.max(0, flashT - dt * 2);
+  if (ST === 'rolling'){
+    rollT += dt;
+    if (rollT > 0.5){
+      afterRoll();
+    } else {
+      dice = 1 + Math.floor(Math.random() * 6);
+    }
+  } else if (ST === 'moving'){
+    mvT += dt;
+    if (mvT > 0.085){ mvT = 0; stepMove(); }
+  }
+  if (ST === 'rolling' && Math.floor(rollT / 0.06) !== Math.floor((rollT - dt) / 0.06) && BGM.ready){
+    BGM.osc('square', 700 + Math.random() * 300, 0.03, 0.02);
+  }
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ---------- 交互 ---------- */
+function tap(ev){
+  if (over || ST !== 'choosing') return;
+  if (isAI(turn)) return;
+  var rc = cv.getBoundingClientRect();
+  var mx, my;
+  if (ev.touches && ev.touches.length){ mx = ev.touches[0].clientX; my = ev.touches[0].clientY; }
+  else { mx = ev.clientX; my = ev.clientY; }
+  mx -= rc.left; my -= rc.top;
+  var best = -1, bd = (CELL * .95) * (CELL * .95);
+  for (var i=0;i<opts.length;i++){
+    var o = opts[i], pl = planes[turn][o.k];
+    var rcc = (pl.pos === -1) ? BASE[turn][o.k] : cellOf(turn, pl.pos);
+    var dx = mx - PX(rcc[1]), dy = my - PY(rcc[0]);
+    var d = dx*dx + dy*dy;
+    if (d < bd){ bd = d; best = i; }
+  }
+  if (best < 0){
+    addLog('请点【闪金圈】的那架飞机');
+    return;
+  }
+  if (aiTimer){ clearTimeout(aiTimer); aiTimer = null; }
+  startMove(opts[best], dice === 6);
+}
+cv.addEventListener('mousedown', tap);
+cv.addEventListener('touchstart', function(e){ e.preventDefault(); tap(e); }, { passive:false });
+
+document.getElementById('roll').addEventListener('click', function(){
+  if (isAI(turn)) return;
+  doRoll();
+});
+document.getElementById('pnum').addEventListener('change', function(){
+  pnum = parseInt(this.value, 10); setup(); resize();
+});
+document.getElementById('mm').addEventListener('change', function(){ mm = this.value; setup(); resize(); });
+document.getElementById('restart').addEventListener('click', function(){ setup(); resize(); });
+document.getElementById('ovb').addEventListener('click', function(){ setup(); resize(); });
+document.getElementById('help').addEventListener('click', function(){ document.getElementById('hp').classList.add('on'); });
+document.getElementById('hpb').addEventListener('click', function(){ document.getElementById('hp').classList.remove('on'); });
+
+setup();
+resize();
+renderLog();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

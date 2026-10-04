@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>弹跳球 11 · 霓虹版</title>
+<style>
+:root{--cyan:#00f0ff;--magenta:#ff2bd6;--purple:#8b5cf6;--lime:#39ff14;--yellow:#ffe600;--bg:#05040d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;
+touch-action:manipulation;
+background:radial-gradient(circle at 78% 22%, rgba(255,230,0,.16), transparent 45%),
+radial-gradient(circle at 22% 78%, rgba(0,240,255,.20), transparent 45%),
+radial-gradient(circle at 50% 50%, #0c0a1e 0%, var(--bg) 70%);
+color:#eafcff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Microsoft YaHei",monospace;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+background-image:linear-gradient(rgba(0,240,255,.055) 1px,transparent 1px),
+linear-gradient(90deg,rgba(255,43,214,.055) 1px,transparent 1px);
+background-size:44px 44px;mask-image:radial-gradient(circle at 50% 50%,#000 30%,transparent 78%)}
+.wrap{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;max-width:440px}
+h1{font-size:20px;letter-spacing:.22em;margin:0 0 10px;color:#fff;
+text-shadow:0 0 6px var(--yellow),0 0 18px var(--cyan),0 0 42px rgba(0,240,255,.5)}
+.hud{display:flex;gap:18px;margin-bottom:12px;font-size:13px;letter-spacing:.12em;color:#9ef6ff}
+.hud b{color:#fff;text-shadow:0 0 10px var(--magenta)}
+.panel{padding:10px;border-radius:18px;background:rgba(10,8,26,.72);border:1px solid rgba(0,240,255,.32);
+box-shadow:0 0 0 1px rgba(255,230,0,.14) inset,0 0 24px rgba(0,240,255,.26),0 0 60px rgba(255,43,214,.18)}
+canvas{display:block;border-radius:10px;background:rgba(3,2,10,.94);width:min(88vw,400px);height:auto;touch-action:none}
+#ctl{display:flex;gap:14px;margin-top:16px}
+.k{width:76px;height:76px;border-radius:20px;background:rgba(255,255,255,.035);border:1px solid rgba(0,240,255,.4);
+color:#eafcff;font-size:24px;display:flex;align-items:center;justify-content:center;user-select:none;
+box-shadow:inset 0 0 16px rgba(0,240,255,.12)}
+.k:active{background:rgba(0,240,255,.18);box-shadow:0 0 22px rgba(0,240,255,.6)}
+.k.re{border-color:var(--magenta);color:var(--magenta);font-size:13px;text-shadow:0 0 10px var(--magenta)}
+.tip{margin-top:14px;font-size:11px;color:#7c8fb3;text-align:center;line-height:1.7}
+.tip span{color:var(--cyan)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>NEON BOUNCE</h1>
+  <div class="hud">接住 <b id="hit">0</b>　命 <b id="life">3</b>　关 <b id="lv">1</b></div>
+  <div class="panel"><canvas id="cv" width="420" height="440"></canvas></div>
+  <div id="ctl"><div class="k" id="left">◀</div><div class="k re" id="reset">🔄 重开</div><div class="k" id="right">▶</div></div>
+  <div class="tip"><b>手指在画面上左右拖动</b>移动挡板，或点下方按钮　每 10 次升级</div>
+</div>
+<script>
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+let ball,paddle,hits,life,lev,over,timer,trail,phase=0;
+function init(){
+  hits=0;life=3;lev=1;over=false;trail=[];
+  paddle={x:cv.width/2-55,y:cv.height-26,w:110,h:13};
+  resetBall();upd();
+  clearInterval(timer);timer=setInterval(loop,1000/60);
+}
+function resetBall(){
+  ball={x:cv.width/2,y:80,r:10,vx:(Math.random()<.5?-1:1)*(2+lev*0.4),vy:2+lev*0.3};
+}
+function upd(){
+  document.getElementById('hit').textContent=hits;
+  document.getElementById('life').textContent=life;
+  document.getElementById('lv').textContent=lev;
+}
+function loop(){
+  phase+=0.05;
+  if(!over){
+    ball.x+=ball.vx;ball.y+=ball.vy;
+    if(ball.x<ball.r||ball.x>cv.width-ball.r){ball.vx*=-1;ball.x=Math.max(ball.r,Math.min(cv.width-ball.r,ball.x));}
+    if(ball.y<ball.r)ball.vy=Math.abs(ball.vy);
+    if(ball.vy>0&&ball.y+ball.r>paddle.y&&ball.y-ball.r<paddle.y+paddle.h&&
+       ball.x>paddle.x-ball.r&&ball.x<paddle.x+paddle.w+ball.r){
+      ball.vy=-Math.abs(ball.vy);
+      ball.vx=((ball.x-(paddle.x+paddle.w/2))/(paddle.w/2))*4;
+      hits++;upd();trail.push({x:ball.x,y:ball.y,t:1});
+      if(hits%10===0){lev++;upd();}
+    }
+    if(ball.y>cv.height+40){life--;upd();if(life<=0)over=true;else resetBall();}
+    trail.forEach(t=>t.t-=0.04);
+    trail=trail.filter(t=>t.t>0);
+  }
+  draw();
+}
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='rgba(3,2,10,.95)';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.save();ctx.strokeStyle='rgba(139,92,246,.18)';ctx.lineWidth=1;
+  for(let x=0;x<cv.width;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,cv.height);ctx.stroke();}
+  for(let y=0;y<cv.height;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(cv.width,y);ctx.stroke();}
+  ctx.restore();
+  trail.forEach(t=>{
+    ctx.save();ctx.globalAlpha=t.t*0.55;ctx.shadowColor='#ff2bd6';ctx.shadowBlur=16;
+    ctx.fillStyle='#ff2bd6';ctx.beginPath();ctx.arc(t.x,t.y,ball.r*t.t,0,Math.PI*2);ctx.fill();ctx.restore();
+  });
+  const g=ctx.createLinearGradient(paddle.x,0,paddle.x+paddle.w,0);
+  g.addColorStop(0,'#00f0ff');g.addColorStop(.5,'#00ffa3');g.addColorStop(1,'#8b5cf6');
+  ctx.save();ctx.shadowColor='#00f0ff';ctx.shadowBlur=22;ctx.fillStyle=g;
+  ctx.beginPath();ctx.roundRect(paddle.x,paddle.y,paddle.w,paddle.h,6);ctx.fill();ctx.restore();
+  const p=1+Math.sin(phase*2)*0.12;
+  ctx.save();ctx.shadowColor='#ffe600';ctx.shadowBlur=26;ctx.fillStyle='#ffe600';
+  ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r*p,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0;ctx.fillStyle='#fff8c4';
+  ctx.beginPath();ctx.arc(ball.x-3,ball.y-3,ball.r*0.35,0,Math.PI*2);ctx.fill();ctx.restore();
+  if(over){
+    ctx.save();ctx.fillStyle='rgba(5,3,16,.76)';ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.textAlign='center';ctx.shadowColor='#ff2bd6';ctx.shadowBlur=26;ctx.fillStyle='#fff';
+    ctx.font='bold 24px ui-monospace,monospace';
+    ctx.fillText('GAME OVER',cv.width/2,cv.height/2-10);
+    ctx.shadowColor='#00f0ff';ctx.shadowBlur=14;ctx.font='14px ui-monospace,monospace';
+    ctx.fillText('共接住 '+hits+' 次',cv.width/2,cv.height/2+22);
+    ctx.fillText('点 🔄 重开',cv.width/2,cv.height/2+46);ctx.restore();
+  }
+}
+function moveTo(clientX){
+  const r=cv.getBoundingClientRect();
+  const x=(clientX-r.left)*(cv.width/r.width);
+  paddle.x=Math.max(0,Math.min(cv.width-paddle.w,x-paddle.w/2));
+}
+cv.addEventListener('touchstart',e=>{e.preventDefault();moveTo(e.touches[0].clientX);},{passive:false});
+cv.addEventListener('touchmove',e=>{e.preventDefault();moveTo(e.touches[0].clientX);},{passive:false});
+addEventListener('mousemove',e=>moveTo(e.clientX));
+function nudge(d){paddle.x=Math.max(0,Math.min(cv.width-paddle.w,paddle.x+d));}
+document.getElementById('left').addEventListener('touchstart',e=>{e.preventDefault();nudge(-30);},{passive:false});
+document.getElementById('right').addEventListener('touchstart',e=>{e.preventDefault();nudge(30);},{passive:false});
+document.getElementById('left').addEventListener('mousedown',()=>nudge(-30));
+document.getElementById('right').addEventListener('mousedown',()=>nudge(30));
+document.getElementById('reset').addEventListener('click',()=>init());
+addEventListener('keydown',e=>{
+  if(e.key.toLowerCase()==='r'){init();return;}
+  if(e.key==='ArrowLeft'){nudge(-26);e.preventDefault();}
+  if(e.key==='ArrowRight'){nudge(26);e.preventDefault();}
+});
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#1a0f08">
+<title>象棋 · NEON XIANGQI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:radial-gradient(circle at 50% 0%,#2a1710,#0a0604 70%);color:#ffeedd;overflow:hidden;
+  font-family:"Segoe UI",system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;
+  display:flex;flex-direction:column;align-items:center;
+  padding:calc(6px + env(safe-area-inset-top)) 8px calc(6px + env(safe-area-inset-bottom))}
+header{text-align:center;width:100%}
+h1{font-size:clamp(16px,4.4vw,23px);font-weight:900;letter-spacing:.26em;
+  background:linear-gradient(92deg,#ffb347,#ff5c5c,#ffd166);-webkit-background-clip:text;background-clip:text;
+  color:transparent;filter:drop-shadow(0 0 14px rgba(255,140,80,.45))}
+.sub{margin-top:1px;font-size:12px;color:#e0b391;min-height:17px;letter-spacing:.04em}
+.sub b{color:#ffd166}
+canvas{display:block;margin:5px auto;border-radius:12px;
+  box-shadow:0 0 32px rgba(255,150,80,.16),0 12px 28px rgba(0,0,0,.6);touch-action:none}
+.bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:97vw}
+button,select{font-family:inherit;cursor:pointer;font-size:12px;font-weight:800;letter-spacing:.04em;
+  padding:9px 12px;border-radius:10px;color:#ffeedd;border:1px solid rgba(255,150,80,.4);
+  background:linear-gradient(180deg,rgba(255,150,80,.2),rgba(255,150,80,.05));transition:.15s}
+button:hover,select:hover{border-color:rgba(255,180,110,.85);box-shadow:0 0 16px rgba(255,150,80,.32)}
+button:active{transform:scale(.96)}
+button.primary{background:linear-gradient(180deg,rgba(255,92,92,.3),rgba(255,209,102,.12));border-color:rgba(255,92,92,.55)}
+select{background-color:#1e1008;color:#ffeedd;padding:9px 5px}
+#bgmBtn{position:fixed;right:9px;top:calc(9px + env(safe-area-inset-top));z-index:8;width:40px;height:40px;
+  padding:0;border-radius:50%;font-size:16px;display:grid;place-items:center;
+  border:1px solid rgba(255,150,80,.45);background:rgba(26,14,8,.8);color:#ffeedd;backdrop-filter:blur(6px)}
+.ov{position:fixed;inset:0;z-index:6;display:none;place-items:center;padding:18px;overflow:auto;
+  background:radial-gradient(circle at 50% 40%,rgba(26,14,8,.86),rgba(6,3,2,.96));backdrop-filter:blur(6px)}
+.ov.on{display:grid}
+.card{width:min(420px,92vw);padding:22px 20px;border-radius:20px;text-align:center;
+  background:linear-gradient(160deg,rgba(48,28,16,.96),rgba(14,8,5,.97));
+  border:1px solid rgba(255,150,80,.36);box-shadow:0 0 44px rgba(255,150,80,.18)}
+.card h2{font-size:24px;font-weight:900;letter-spacing:.18em;color:#fff4ea}
+.card p{margin-top:11px;font-size:13.5px;color:#e0b391;line-height:1.85}
+.card p b{color:#ffd166}
+.card .rule{margin-top:12px;text-align:left;font-size:12.5px;line-height:2;color:#e0b391}
+.card .row{margin-top:18px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<button id="bgmBtn" title="背景音乐开关">🔊</button>
+<header>
+  <h1>象 棋</h1>
+  <div class="sub" id="status">红方先行</div>
+</header>
+<canvas id="cv"></canvas>
+<div class="bar">
+  <select id="mode">
+    <option value="pvp">双人同屏</option>
+    <option value="ai1">人机 · 简单</option>
+    <option value="ai2" selected>人机 · 普通</option>
+  </select>
+  <button id="undo">悔 棋</button>
+  <button id="help">规则</button>
+  <button class="primary" id="restart">重 开</button>
+</div>
+
+<div class="ov" id="ov"><div class="card">
+  <h2 id="ovt">胜 利</h2>
+  <p id="ovp"></p>
+  <div class="row"><button class="primary" id="ovb">再 来 一 局</button></div>
+</div></div>
+<div class="ov" id="hp"><div class="card">
+  <h2>规 则</h2>
+  <div class="rule">
+    车：直线任意格（不可越子）<br>
+    马：走日字，被蹩马腿则不能走<br>
+    炮：不吃子时走直线；吃子必须隔一个棋子（炮架）<br>
+    相／象：走田字，塞象眼不能走，且不可过河<br>
+    仕／士：斜走一格，只在九宫内<br>
+    帅／将：直走一格，只在九宫内；<b>两将不可照面</b><br>
+    兵／卒：向前一格；过河后可左右走一格<br>
+    目标：将死对方（对方无子可动也算输）
+  </div>
+  <div class="row"><button class="primary" id="hpb">知 道 了</button></div>
+</div></div>
+
+<script>
+'use strict';
+/* ===== 背景音乐（纯代码合成） ===== */
+var BGM = {
+  ctx:null, ready:false, on:true, vol:0.13, step:0, next:0, timer:null, mood:'tense', noise:null, mus:null, master:null,
+  moods:{
+    calm:  { root:110,   chords:[0,-2,-4,-5], pent:[0,3,5,7,10,12], eighth:0.215, hat:0.24, bass:0.26, arp:0.05 },
+    jump:  { root:130.8, chords:[0,5,-2,3],   pent:[0,2,4,7,9,12],  eighth:0.155, hat:0.50, bass:0.30, arp:0.06 },
+    tense: { root:98,    chords:[0,-1,-3,-5], pent:[0,1,3,5,7,10],  eighth:0.185, hat:0.22, bass:0.27, arp:0.05 },
+    battle:{ root:110,   chords:[0,-2,-4,-5], pent:[0,3,5,7,10,12], eighth:0.165, hat:0.55, bass:0.30, arp:0.06 },
+    cute:  { root:146.8, chords:[0,4,-3,2],   pent:[0,2,4,5,7,12],  eighth:0.170, hat:0.40, bass:0.24, arp:0.05 }
+  },
+  init:function(mood){
+    if (mood) this.mood = mood;
+    if (this.ctx){ this.resume(); return; }
+    try{
+      var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      var a = this.ctx = new AC();
+      var mg = this.master = a.createGain(); mg.gain.value = 0.55; mg.connect(a.destination);
+      var ms = this.mus = a.createGain(); ms.gain.value = 0; ms.connect(mg);
+      var n = Math.floor(a.sampleRate), b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
+      for (var i=0;i<n;i++) d[i] = Math.random()*2 - 1;
+      this.noise = b; this.ready = true;
+      var self = this;
+      this.timer = setInterval(function(){ self.tick(); }, 60);
+      this.apply();
+    }catch(e){ this.ready = false; }
+  },
+  resume:function(){ try{ if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); }catch(e){} },
+  apply:function(){
+    if (!this.ready) return;
+    var t = this.ctx.currentTime;
+    this.mus.gain.cancelScheduledValues(t);
+    this.mus.gain.setTargetAtTime(this.on ? this.vol : 0, t, 0.3);
+  },
+  toggle:function(){
+    this.on = !this.on;
+    try{ localStorage.setItem('bgm_on', this.on ? '1' : '0'); }catch(e){}
+    this.apply(); this.sync(); return this.on;
+  },
+  sync:function(){ var b = document.getElementById('bgmBtn'); if (b) b.textContent = this.on ? '🔊' : '🔇'; },
+  osc:function(type, f, dur, vol, when){
+    if (!this.ready) return;
+    var a = this.ctx, t = (when === undefined) ? a.currentTime : when;
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.setValueAtTime(Math.max(20, f), t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.mus); o.start(t); o.stop(t + dur + 0.03);
+  },
+  hat:function(when, vol){
+    if (!this.ready) return;
+    var a = this.ctx;
+    var s = a.createBufferSource(); s.buffer = this.noise; s.loop = true;
+    var fl = a.createBiquadFilter(); fl.type = 'highpass'; fl.frequency.value = 6800;
+    var g = a.createGain();
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.linearRampToValueAtTime(vol, when + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
+    s.connect(fl); fl.connect(g); g.connect(this.mus); s.start(when); s.stop(when + 0.06);
+  },
+  tick:function(){
+    if (!this.ready || !this.on) return;
+    this.resume();
+    var a = this.ctx, m = this.moods[this.mood] || this.moods.calm;
+    if (this.next < a.currentTime) this.next = a.currentTime + 0.06;
+    while (this.next < a.currentTime + 0.35){
+      var root = m.chords[((this.step / 8) | 0) % m.chords.length];
+      var f = function(s){ return m.root * Math.pow(2, s / 12); };
+      if (this.step % 8 === 0){
+        this.osc('triangle', f(root - 12), 0.62, m.bass, this.next);
+        this.osc('sawtooth', f(root - 24), 0.66, m.bass * 0.32, this.next);
+      }
+      if (this.step % 2 === 0) this.osc('square', f(root + 12 + m.pent[(this.step * 3) % m.pent.length]), 0.14, m.arp, this.next);
+      if (this.step % 8 === 6) this.osc('triangle', f(root + 24 + m.pent[this.step % m.pent.length]), 0.22, m.arp * 0.85, this.next);
+      this.hat(this.next, this.step % 4 === 0 ? m.hat : m.hat * 0.45);
+      this.step = (this.step + 1) % 32;
+      this.next += m.eighth;
+    }
+  }
+};
+var GAME_MOOD = 'tense';
+try{ BGM.on = (localStorage.getItem('bgm_on') !== '0'); }catch(e){ BGM.on = true; }
+function bgmBoot(){
+  BGM.init(GAME_MOOD); BGM.sync();
+  var b = document.getElementById('bgmBtn');
+  if (b && !b._wired){ b._wired = true; b.addEventListener('click', function(){ BGM.init(GAME_MOOD); BGM.toggle(); }); }
+}
+window.addEventListener('pointerdown', bgmBoot, { once:true });
+window.addEventListener('keydown', bgmBoot, { once:true });
+
+/* ================= 象棋核心 ================= */
+var NM_R = { K:'帅', A:'仕', E:'相', H:'马', R:'车', C:'炮', P:'兵' };
+var NM_B = { K:'将', A:'士', E:'象', H:'马', R:'车', C:'炮', P:'卒' };
+var VAL  = { K:10000, R:900, H:430, C:450, A:160, E:160, P:100 };
+var BS = [], turnS = 'r', sel = -1, movs = [], hist = [], over = false;
+var mode = 'ai2', busy = false, lastF = -1, lastT = -1, checkNow = false;
+var toastTxt = '', toastEnd = 0;
+var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+var CELL = 40, PAD = 20, DPR = 1;
+
+function ix2(c, r){ return r * 9 + c; }
+function otherS(s){ return s === 'r' ? 'b' : 'r'; }
+function inPalace(i, s){
+  var c = i % 9, r = (i / 9) | 0;
+  if (c < 3 || c > 5) return false;
+  return (s === 'b') ? (r >= 0 && r <= 2) : (r >= 7 && r <= 9);
+}
+function setup(){
+  BS = [];
+  for (var i=0;i<90;i++) BS.push(null);
+  var back = ['R','H','E','A','K','A','E','H','R'];
+  for (var c=0;c<9;c++){
+    BS[ix2(c,0)] = { s:'b', t:back[c] };
+    BS[ix2(c,9)] = { s:'r', t:back[c] };
+  }
+  BS[ix2(1,2)] = { s:'b', t:'C' }; BS[ix2(7,2)] = { s:'b', t:'C' };
+  BS[ix2(1,7)] = { s:'r', t:'C' }; BS[ix2(7,7)] = { s:'r', t:'C' };
+  var pc = [0,2,4,6,8];
+  for (var k=0;k<5;k++){
+    BS[ix2(pc[k],3)] = { s:'b', t:'P' };
+    BS[ix2(pc[k],6)] = { s:'r', t:'P' };
+  }
+  turnS = 'r'; sel = -1; movs = []; hist = []; over = false; busy = false;
+  lastF = -1; lastT = -1; checkNow = false;
+  document.getElementById('ov').classList.remove('on');
+  setStatus();
+}
+function setStatus(){
+  var el = document.getElementById('status');
+  if (over) return;
+  var who = turnS === 'r' ? '<b>红方</b>' : '<b>黑方</b>';
+  var extra = checkNow ? ' · <b style="color:#ff6b6b">将军！</b>' : '';
+  if (mode === 'pvp') el.innerHTML = '轮到 ' + who + extra;
+  else el.innerHTML = (turnS === 'r' ? '轮到你（红方）' : '电脑思考中…') + extra;
+}
+function toast(m){ toastTxt = m; toastEnd = performance.now() + 1300; draw(); }
+function cloneBS(){ var o = []; for (var i=0;i<90;i++) o.push(BS[i] ? { s:BS[i].s, t:BS[i].t } : null); return o; }
+
+/* ---------- 走法生成 ---------- */
+function genPiece(bs, i){
+  var p = bs[i]; if (!p) return [];
+  var out = [];
+  var c = i % 9, r = (i / 9) | 0, s = p.s;
+  var k, d;
+  if (p.t === 'R' || p.t === 'C'){
+    var dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+    for (d=0; d<4; d++){
+      var dc = dirs[d][0], dr = dirs[d][1];
+      var nc = c + dc, nr = r + dr, screen = false;
+      while (nc >= 0 && nc < 9 && nr >= 0 && nr < 10){
+        var j = nr * 9 + nc, q = bs[j];
+        if (p.t === 'R'){
+          if (!q) out.push(j);
+          else { if (q.s !== s) out.push(j); break; }
+        } else {
+          if (!screen){ if (!q) out.push(j); else screen = true; }
+          else { if (q){ if (q.s !== s) out.push(j); break; } }
+        }
+        nc += dc; nr += dr;
+      }
+    }
+  } else if (p.t === 'H'){
+    var hj = [[1,2,0,1],[-1,2,0,1],[1,-2,0,-1],[-1,-2,0,-1],[2,1,1,0],[2,-1,1,0],[-2,1,-1,0],[-2,-1,-1,0]];
+    for (k=0;k<8;k++){
+      var nc2 = c + hj[k][0], nr2 = r + hj[k][1];
+      if (nc2 < 0 || nc2 > 8 || nr2 < 0 || nr2 > 9) continue;
+      var leg = (r + hj[k][3]) * 9 + (c + hj[k][2]);
+      if (bs[leg]) continue;
+      var j2 = nr2 * 9 + nc2;
+      if (bs[j2] && bs[j2].s === s) continue;
+      out.push(j2);
+    }
+  } else if (p.t === 'E'){
+    var ed = [[2,2],[-2,2],[2,-2],[-2,-2]];
+    for (k=0;k<4;k++){
+      var nc3 = c + ed[k][0], nr3 = r + ed[k][1];
+      if (nc3 < 0 || nc3 > 8 || nr3 < 0 || nr3 > 9) continue;
+      if (s === 'b' && nr3 > 4) continue;
+      if (s === 'r' && nr3 < 5) continue;
+      var eye = ((r + ed[k][1] / 2) | 0) * 9 + ((c + ed[k][0] / 2) | 0);
+      if (bs[eye]) continue;
+      var j3 = nr3 * 9 + nc3;
+      if (bs[j3] && bs[j3].s === s) continue;
+      out.push(j3);
+    }
+  } else if (p.t === 'A'){
+    var ad = [[1,1],[-1,1],[1,-1],[-1,-1]];
+    for (k=0;k<4;k++){
+      var nc4 = c + ad[k][0], nr4 = r + ad[k][1];
+      if (nc4 < 0 || nc4 > 8 || nr4 < 0 || nr4 > 9) continue;
+      var j4 = nr4 * 9 + nc4;
+      if (!inPalace(j4, s)) continue;
+      if (bs[j4] && bs[j4].s === s) continue;
+      out.push(j4);
+    }
+  } else if (p.t === 'K'){
+    var kd = [[0,1],[0,-1],[1,0],[-1,0]];
+    for (k=0;k<4;k++){
+      var nc5 = c + kd[k][0], nr5 = r + kd[k][1];
+      if (nc5 < 0 || nc5 > 8 || nr5 < 0 || nr5 > 9) continue;
+      var j5 = nr5 * 9 + nc5;
+      if (!inPalace(j5, s)) continue;
+      if (bs[j5] && bs[j5].s === s) continue;
+      out.push(j5);
+    }
+  } else if (p.t === 'P'){
+    var fwd = (s === 'b') ? 1 : -1;
+    var nr6 = r + fwd;
+    if (nr6 >= 0 && nr6 < 10){
+      var j6 = nr6 * 9 + c;
+      if (!bs[j6] || bs[j6].s !== s) out.push(j6);
+    }
+    var crossed = (s === 'b') ? (r > 4) : (r < 5);
+    if (crossed){
+      var lat = [c - 1, c + 1];
+      for (k=0;k<2;k++){
+        if (lat[k] < 0 || lat[k] > 8) continue;
+        var j7 = r * 9 + lat[k];
+        if (!bs[j7] || bs[j7].s !== s) out.push(j7);
+      }
+    }
+  }
+  return out;
+}
+/* 王是否被攻击（含飞将） */
+function kingAttacked(bs, s){
+  var kp = -1;
+  for (var i=0;i<90;i++){ if (bs[i] && bs[i].s === s && bs[i].t === 'K'){ kp = i; break; } }
+  if (kp < 0) return true;
+  var kc = kp % 9, kr = (kp / 9) | 0;
+  var opp = otherS(s);
+  var dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+  for (var d=0; d<4; d++){
+    var dc = dirs[d][0], dr = dirs[d][1];
+    var nc = kc + dc, nr = kr + dr, screen = false;
+    while (nc >= 0 && nc < 9 && nr >= 0 && nr < 10){
+      var q = bs[nr * 9 + nc];
+      if (q){
+        if (!screen){
+          if (q.s === opp){
+            if (q.t === 'R') return true;
+            if (q.t === 'K') return true;
+            if (q.t === 'P'){
+              var fwd = (opp === 'b') ? 1 : -1;
+              if (nc === kc && (nr - kr) === -fwd) return true;
+              if (nr === kr && Math.abs(nc - kc) === 1){
+                var cr = (opp === 'b') ? (nr > 4) : (nr < 5);
+                if (cr) return true;
+              }
+            }
+          }
+          screen = true;
+        } else {
+          if (q.s === opp && q.t === 'C') return true;
+          break;
+        }
+      }
+      nc += dc; nr += dr;
+    }
+  }
+  var hj = [[1,2],[-1,2],[1,-2],[-1,-2],[2,1],[2,-1],[-2,1],[-2,-1]];
+  for (var k=0;k<8;k++){
+    var nc2 = kc + hj[k][0], nr2 = kr + hj[k][1];
+    if (nc2 < 0 || nc2 > 8 || nr2 < 0 || nr2 > 9) continue;
+    var q2 = bs[nr2 * 9 + nc2];
+    if (!q2 || q2.s !== opp || q2.t !== 'H') continue;
+    var dcx = kc - nc2, dry = kr - nr2;
+    var legc = nc2 + (Math.abs(dcx) === 2 ? (dcx > 0 ? 1 : -1) : 0);
+    var legr = nr2 + (Math.abs(dcx) === 2 ? 0 : (dry > 0 ? 1 : -1));
+    if (!bs[legr * 9 + legc]) return true;
+  }
+  var adj = [[1,1],[-1,1],[1,-1],[-1,-1]];
+  for (var k2=0;k2<4;k2++){
+    var nc3 = kc + adj[k2][0], nr3 = kr + adj[k2][1];
+    if (nc3 >= 0 && nc3 <= 8 && nr3 >= 0 && nr3 <= 9){
+      var q3 = bs[nr3 * 9 + nc3];
+      if (q3 && q3.s === opp && q3.t === 'A') return true;
+    }
+    var nc4 = kc + adj[k2][0] * 2, nr4 = kr + adj[k2][1] * 2;
+    if (nc4 < 0 || nc4 > 8 || nr4 < 0 || nr4 > 9) continue;
+    var q4 = bs[nr4 * 9 + nc4];
+    if (q4 && q4.s === opp && q4.t === 'E'){
+      var eye = bs[(kr + adj[k2][1]) * 9 + (kc + adj[k2][0])];
+      var sameHalf = (opp === 'b') ? (nr4 <= 4) : (nr4 >= 5);
+      if (!eye && sameHalf) return true;
+    }
+  }
+  return false;
+}
+function legalMoves(bs, s){
+  var out = [];
+  for (var i=0;i<90;i++){
+    var p = bs[i]; if (!p || p.s !== s) continue;
+    var ms = genPiece(bs, i);
+    for (var k=0;k<ms.length;k++){
+      var t = ms[k], cap = bs[t];
+      bs[t] = p; bs[i] = null;
+      var ok = !kingAttacked(bs, s);
+      bs[i] = p; bs[t] = cap;
+      if (ok) out.push([i, t]);
+    }
+  }
+  return out;
+}
+
+/* ---------- AI ---------- */
+var AI_NODES = 0, AI_T0 = 0, AI_LIM = 0, AI_ABORT = false;
+function evaluate(side){
+  var s = 0;
+  for (var i=0;i<90;i++){
+    var p = BS[i]; if (!p) continue;
+    var v = VAL[p.t];
+    var c = i % 9, r = (i / 9) | 0;
+    if (p.t === 'P'){
+      var adv = (p.s === 'b') ? (r - 3) : (6 - r);
+      v += adv * 14;
+    } else if (p.t === 'H' || p.t === 'C'){
+      v += (4 - Math.abs(c - 4)) * 6;
+    } else if (p.t === 'R'){
+      v += (4 - Math.abs(c - 4)) * 3;
+    }
+    s += (p.s === side) ? v : -v;
+  }
+  return s;
+}
+function search(side, depth, alpha, beta, root){
+  if (AI_ABORT) return 0;
+  AI_NODES++;
+  if ((AI_NODES & 255) === 0 && (performance.now() - AI_T0) > AI_LIM){ AI_ABORT = true; return 0; }
+  if (depth === 0) return evaluate(root);
+  var ms = legalMoves(BS, side);
+  if (!ms.length) return (side === root) ? -990000 : 990000;
+  ms.sort(function(x, y){
+    var a = BS[x[1]], b = BS[y[1]];
+    var ca = (a && a.s !== side) ? VAL[a.t] : 0;
+    var cb = (b && b.s !== side) ? VAL[b.t] : 0;
+    return cb - ca;
+  });
+  var best = (side === root) ? -1e9 : 1e9;
+  for (var k=0;k<ms.length;k++){
+    var f = ms[k][0], t = ms[k][1];
+    var a = BS[f], cap = BS[t];
+    BS[t] = a; BS[f] = null;
+    var sc = search(otherS(side), depth - 1, alpha, beta, root);
+    BS[f] = a; BS[t] = cap;
+    if (side === root){
+      if (sc > best) best = sc;
+      if (best > alpha) alpha = best;
+    } else {
+      if (sc < best) best = sc;
+      if (best < beta) beta = best;
+    }
+    if (beta <= alpha) break;
+    if (AI_ABORT) break;
+  }
+  return best;
+}
+function aiPick(side, level){
+  var ms = legalMoves(BS, side);
+  if (!ms.length) return null;
+  AI_NODES = 0; AI_ABORT = false; AI_T0 = performance.now();
+  AI_LIM = (level === 1) ? 320 : 1100;
+  var depth = (level === 1) ? 2 : 3;
+  ms.sort(function(x, y){
+    var a = BS[x[1]], b = BS[y[1]];
+    var ca = (a && a.s !== side) ? VAL[a.t] : 0;
+    var cb = (b && b.s !== side) ? VAL[b.t] : 0;
+    return cb - ca;
+  });
+  var best = ms[0], bestV = -1e9, alpha = -1e9;
+  for (var k=0;k<ms.length;k++){
+    var f = ms[k][0], t = ms[k][1];
+    var a = BS[f], cap = BS[t];
+    BS[t] = a; BS[f] = null;
+    var v = search(otherS(side), depth, alpha, 1e9, side);
+    BS[f] = a; BS[t] = cap;
+    v += Math.random() * (level === 1 ? 40 : 5);
+    if (v > bestV){ bestV = v; best = ms[k]; }
+    if (v > alpha) alpha = v;
+    if (AI_ABORT) break;
+  }
+  return best;
+}
+function aiTurn(){
+  if (over) return;
+  busy = true;
+  setStatus();
+  setTimeout(function(){
+    var lv = (mode === 'ai1') ? 1 : 2;
+    var m = aiPick('b', lv);
+    busy = false;
+    if (!m){ over = true; finish('r', '黑方无子可动！'); return; }
+    doMove(m[0], m[1]);
+  }, 160);
+}
+
+/* ---------- 落子 ---------- */
+function doMove(f, t){
+  hist.push({ b: cloneBS(), turn: turnS, lf: lastF, lt: lastT });
+  if (hist.length > 150) hist.shift();
+  var p = BS[f];
+  var captured = BS[t];
+  BS[t] = p; BS[f] = null;
+  lastF = f; lastT = t;
+  if (BGM.ready){
+    BGM.osc('sine', 520, 0.07, 0.04);
+    if (captured) BGM.osc('triangle', 260, 0.12, 0.045, BGM.ctx.currentTime + 0.02);
+  }
+  turnS = otherS(turnS);
+  checkNow = kingAttacked(BS, turnS);
+  var ms = legalMoves(BS, turnS);
+  var kingGone = true;
+  for (var i=0;i<90;i++) if (BS[i] && BS[i].s === turnS && BS[i].t === 'K') kingGone = false;
+  if (kingGone){
+    over = true; finish(otherS(turnS), '擒获对方主帅！'); draw(); return true;
+  }
+  if (!ms.length){
+    over = true;
+    finish(otherS(turnS), checkNow ? '绝杀！对方被将死' : '对方无子可动');
+    draw();
+    return true;
+  }
+  setStatus();
+  draw();
+  if (mode !== 'pvp' && turnS === 'b') aiTurn();
+  return false;
+}
+function finish(side, why){
+  var who = side === 'r' ? '红方' : '黑方';
+  document.getElementById('ovt').textContent = '🎉 ' + who + ' 胜 利';
+  document.getElementById('ovp').innerHTML = why;
+  document.getElementById('ov').classList.add('on');
+  if (BGM.ready){
+    var t0 = BGM.ctx.currentTime;
+    BGM.osc('triangle', 523, 0.26, 0.09, t0);
+    BGM.osc('triangle', 784, 0.26, 0.09, t0 + 0.12);
+    BGM.osc('triangle', 1046, 0.42, 0.09, t0 + 0.24);
+  }
+}
+
+/* ---------- 绘制 ---------- */
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  var availW = window.innerWidth - 18;
+  var availH = window.innerHeight - 178;
+  CELL = Math.max(22, Math.floor(Math.min(availW / 9.8, availH / 10.9)));
+  PAD = Math.round(CELL * 0.55);
+  var w = CELL * 8 + PAD * 2, h = CELL * 9 + PAD * 2;
+  cv.width = Math.round(w * DPR); cv.height = Math.round(h * DPR);
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  draw();
+}
+window.addEventListener('resize', resize);
+function px2(i){ return PAD + (i % 9) * CELL; }
+function py2(i){ return PAD + (((i / 9) | 0)) * CELL; }
+
+function draw(){
+  var w = CELL * 8 + PAD * 2, h = CELL * 9 + PAD * 2;
+  ctx.clearRect(0, 0, w, h);
+  var g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, '#3a2416'); g.addColorStop(.5, '#2b1a0f'); g.addColorStop(1, '#1c1109');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(255,208,150,.5)'; ctx.lineWidth = 1.2;
+  for (var r=0;r<10;r++){
+    ctx.beginPath();
+    ctx.moveTo(px2(ix2(0,r)), py2(ix2(0,r)));
+    ctx.lineTo(px2(ix2(8,r)), py2(ix2(0,r)));
+    ctx.stroke();
+  }
+  for (var c=0;c<9;c++){
+    if (c === 0 || c === 8){
+      ctx.beginPath();
+      ctx.moveTo(px2(ix2(c,0)), py2(ix2(c,0)));
+      ctx.lineTo(px2(ix2(c,9)), py2(ix2(c,9)));
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(px2(ix2(c,0)), py2(ix2(c,0)));
+      ctx.lineTo(px2(ix2(c,4)), py2(ix2(c,4)));
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(px2(ix2(c,5)), py2(ix2(c,5)));
+      ctx.lineTo(px2(ix2(c,9)), py2(ix2(c,9)));
+      ctx.stroke();
+    }
+  }
+  /* 九宫斜线 */
+  var pal = [[3,0,5,2],[3,2,5,0],[3,7,5,9],[3,9,5,7]];
+  for (var k=0;k<4;k++){
+    var A = ix2(pal[k][0], pal[k][1]), B2 = ix2(pal[k][2], pal[k][3]);
+    ctx.beginPath();
+    ctx.moveTo(px2(A), py2(A));
+    ctx.lineTo(px2(B2), py2(B2));
+    ctx.stroke();
+  }
+  /* 楚河汉界 */
+  ctx.fillStyle = 'rgba(255,210,150,.4)';
+  ctx.font = '700 ' + Math.round(CELL * 0.5) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  var my = PAD + CELL * 4.5;
+  ctx.fillText('楚 河', PAD + CELL * 2, my);
+  ctx.fillText('汉 界', PAD + CELL * 6, my);
+  /* 可走点 */
+  for (k=0;k<movs.length;k++){
+    var mi = movs[k];
+    ctx.beginPath();
+    ctx.arc(px2(mi), py2(mi), CELL * 0.2, 0, Math.PI * 2);
+    ctx.fillStyle = BS[mi] ? 'rgba(255,90,90,.7)' : 'rgba(120,255,190,.6)';
+    ctx.fill();
+  }
+  /* 棋子 */
+  for (var i=0;i<90;i++) if (BS[i]) drawMan(i, BS[i]);
+  if (sel >= 0){
+    ctx.beginPath();
+    ctx.arc(px2(sel), py2(sel), CELL * 0.46, 0, Math.PI * 2);
+    ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2.6; ctx.stroke();
+  }
+  if (lastT >= 0 && BS[lastT]){
+    ctx.beginPath();
+    ctx.arc(px2(lastT), py2(lastT), CELL * 0.49, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.6; ctx.stroke();
+  }
+  if (performance.now() < toastEnd){
+    ctx.font = '700 ' + Math.round(CELL * 0.42) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    var tw = ctx.measureText(toastTxt).width + 24;
+    ctx.fillStyle = 'rgba(0,0,0,.72)';
+    ctx.beginPath(); ctx.rect(w/2 - tw/2, 4, tw, CELL * 0.86); ctx.fill();
+    ctx.fillStyle = '#ffe08a';
+    ctx.fillText(toastTxt, w/2, 4 + CELL * 0.43);
+  }
+}
+function drawMan(i, p){
+  var X = px2(i), Y = py2(i), R = CELL * 0.42;
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 7; ctx.shadowOffsetY = 3;
+  var g = ctx.createRadialGradient(X - R*.3, Y - R*.35, R*.1, X, Y, R);
+  if (p.s === 'r'){ g.addColorStop(0, '#fff6ec'); g.addColorStop(.7, '#f2ddc4'); g.addColorStop(1, '#c9a882'); }
+  else { g.addColorStop(0, '#fff6ec'); g.addColorStop(.7, '#e8d3ba'); g.addColorStop(1, '#b99a76'); }
+  ctx.beginPath(); ctx.arc(X, Y, R, 0, Math.PI * 2);
+  ctx.fillStyle = g; ctx.fill();
+  ctx.restore();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = p.s === 'r' ? '#c8281e' : '#1d1d1d';
+  ctx.beginPath(); ctx.arc(X, Y, R, 0, Math.PI * 2); ctx.stroke();
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(X, Y, R * 0.82, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = p.s === 'r' ? '#c8281e' : '#1d1d1d';
+  ctx.font = '900 ' + Math.round(R * 1.05) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText((p.s === 'r' ? NM_R : NM_B)[p.t], X, Y + 1);
+}
+
+/* ---------- 交互 ---------- */
+function tap(ev){
+  if (over || busy) return;
+  if (mode !== 'pvp' && turnS === 'b') return;
+  var rc = cv.getBoundingClientRect();
+  var mx, my;
+  if (ev.touches && ev.touches.length){ mx = ev.touches[0].clientX; my = ev.touches[0].clientY; }
+  else { mx = ev.clientX; my = ev.clientY; }
+  mx -= rc.left; my -= rc.top;
+  var best = -1, bd = CELL * 0.62 * CELL * 0.62;
+  for (var i=0;i<90;i++){
+    var dx = mx - px2(i), dy = my - py2(i);
+    var d = dx*dx + dy*dy;
+    if (d < bd){ bd = d; best = i; }
+  }
+  if (best < 0) return;
+  if (sel >= 0){
+    for (var k=0;k<movs.length;k++){
+      if (movs[k] === best){
+        var from = sel; sel = -1; movs = [];
+        doMove(from, best);
+        return;
+      }
+    }
+  }
+  if (BS[best] && BS[best].s === turnS){
+    sel = best; movs = [];
+    var ms = legalMoves(BS, turnS);
+    for (var q=0;q<ms.length;q++) if (ms[q][0] === best) movs.push(ms[q][1]);
+    if (!movs.length) toast('这枚棋子走不了');
+    draw();
+    if (BGM.ready) BGM.osc('sine', 900, 0.05, 0.03);
+  } else {
+    if (BS[best]) toast('这是' + (BS[best].s === 'r' ? '红' : '黑') + '方的棋子');
+    sel = -1; movs = []; draw();
+  }
+}
+cv.addEventListener('mousedown', tap);
+cv.addEventListener('touchstart', function(e){ e.preventDefault(); tap(e); }, { passive:false });
+
+document.getElementById('mode').addEventListener('change', function(){ mode = this.value; setup(); resize(); });
+document.getElementById('restart').addEventListener('click', function(){ setup(); resize(); });
+document.getElementById('ovb').addEventListener('click', function(){ setup(); resize(); });
+document.getElementById('help').addEventListener('click', function(){ document.getElementById('hp').classList.add('on'); });
+document.getElementById('hpb').addEventListener('click', function(){ document.getElementById('hp').classList.remove('on'); });
+document.getElementById('undo').addEventListener('click', function(){
+  if (busy){ toast('电脑思考中…'); return; }
+  if (mode !== 'pvp' && turnS !== 'r'){ toast('等电脑走完再悔棋'); return; }
+  if (!hist.length){ toast('没有可悔的棋'); return; }
+  var steps = (mode !== 'pvp' && hist.length >= 2) ? 2 : 1;
+  for (var i=0;i<steps;i++){
+    var h = hist.pop(); if (!h) break;
+    BS = h.b; turnS = h.turn; lastF = h.lf; lastT = h.lt;
+  }
+  over = false; sel = -1; movs = [];
+  checkNow = kingAttacked(BS, turnS);
+  document.getElementById('ov').classList.remove('on');
+  setStatus(); draw();
+});
+
+setup();
+resize();
+</script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>俄罗斯方块 02 · 霓虹版</title>
+<style>
+:root{--cyan:#00f0ff;--magenta:#ff2bd6;--purple:#8b5cf6;--lime:#39ff14;--bg:#05040d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;
+touch-action:manipulation;
+background:radial-gradient(circle at 15% 15%, rgba(139,92,246,.22), transparent 45%),
+radial-gradient(circle at 85% 85%, rgba(0,240,255,.20), transparent 45%),
+radial-gradient(circle at 50% 50%, #0c0a1e 0%, var(--bg) 70%);
+color:#eafcff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Microsoft YaHei",monospace;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+background-image:linear-gradient(rgba(0,240,255,.055) 1px,transparent 1px),
+linear-gradient(90deg,rgba(255,43,214,.055) 1px,transparent 1px);
+background-size:44px 44px;mask-image:radial-gradient(circle at 50% 50%,#000 30%,transparent 78%)}
+.wrap{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;max-width:420px}
+h1{font-size:20px;letter-spacing:.24em;margin:0 0 8px;color:#fff;
+text-shadow:0 0 6px var(--cyan),0 0 18px var(--cyan),0 0 42px rgba(0,240,255,.55)}
+.hud{display:flex;gap:18px;margin-bottom:12px;font-size:13px;letter-spacing:.12em;color:#9ef6ff}
+.hud b{color:#fff;text-shadow:0 0 9px var(--magenta)}
+.main{display:flex;gap:14px;align-items:flex-start}
+.panel{padding:10px;border-radius:18px;background:rgba(10,8,26,.72);border:1px solid rgba(0,240,255,.35);
+box-shadow:0 0 0 1px rgba(255,43,214,.18) inset,0 0 22px rgba(0,240,255,.28),0 0 60px rgba(139,92,246,.25)}
+canvas{display:block;border-radius:10px;background:rgba(3,2,10,.92);height:min(56vh,420px);width:auto;touch-action:none;
+box-shadow:0 0 26px rgba(139,92,246,.3) inset}
+#pad{display:grid;grid-template-columns:repeat(2,min(16vw,62px));gap:8px}
+#pad .k{width:min(16vw,62px);height:min(16vw,62px);border-radius:16px;background:rgba(255,255,255,.035);
+border:1px solid rgba(0,240,255,.4);color:#eafcff;font-size:22px;display:flex;align-items:center;justify-content:center;user-select:none}
+#pad .k:active{background:rgba(0,240,255,.18);box-shadow:0 0 22px rgba(0,240,255,.6)}
+#pad .wide{grid-column:span 2;width:auto;color:var(--magenta);border-color:rgba(255,43,214,.5);
+text-shadow:0 0 10px var(--magenta);font-size:13px;letter-spacing:.08em}
+.tip{margin-top:14px;font-size:11px;color:#7c8fb3;text-align:center;line-height:1.7}
+.tip span{color:var(--cyan)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>NEON TETRIS</h1>
+  <div class="hud">分 <b id="score">0</b>　行 <b id="lines">0</b>　级 <b id="lv">1</b></div>
+  <div class="main">
+    <div class="panel"><canvas id="cv" width="240" height="480"></canvas></div>
+    <div id="pad">
+      <div class="k" data-a="left">◀</div>
+      <div class="k" data-a="right">▶</div>
+      <div class="k" data-a="rot">⟳</div>
+      <div class="k" data-a="down">▼</div>
+      <div class="k wide" data-a="drop">⤓ DROP</div>
+      <div class="k wide" data-a="restart">🔄 重开</div>
+    </div>
+  </div>
+  <div class="tip"><b>滑动</b>画面可左右移动 / 下滑加速 / 上滑旋转</div>
+</div>
+<script>
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),C=24,W=10,H=20;
+const SHAPES=[[[1,1,1,1]],[[1,1],[1,1]],[[0,1,0],[1,1,1]],
+              [[1,0,0],[1,1,1]],[[0,0,1],[1,1,1]],[[0,1,1],[1,1,0]],[[1,1,0],[0,1,1]]];
+const COLORS=['#00f0ff','#ffe600','#8b5cf6','#39ff14','#ff8a00','#00ffa3','#ff2bd6'];
+let board,piece,px,py,pi,score,lines,lev,timer,over;
+function init(){
+  board=Array.from({length:H},()=>Array(W).fill(0));
+  score=0;lines=0;lev=1;over=false;spawn();draw();upd();
+  clearInterval(timer);timer=setInterval(tick,520);
+}
+function spawn(){
+  pi=Math.floor(Math.random()*SHAPES.length);
+  piece=SHAPES[pi].map(r=>r.slice());
+  px=Math.floor((W-piece[0].length)/2);py=0;
+  if(crash(px,py,piece))over=true;
+}
+function crash(x,y,p){
+  for(let j=0;j<p.length;j++)for(let i=0;i<p[j].length;i++){
+    if(!p[j][i])continue;
+    const bx=x+i,by=y+j;
+    if(bx<0||bx>=W||by>=H)return true;
+    if(by>=0&&board[by][bx])return true;
+  }
+  return false;
+}
+function merge(){piece.forEach((row,j)=>row.forEach((v,i)=>{if(v)board[py+j][px+i]=pi+1;}));}
+function clearLines(){
+  let n=0;
+  for(let y=H-1;y>=0;y--){
+    if(board[y].every(v=>v)){board.splice(y,1);board.unshift(Array(W).fill(0));n++;y++;}
+  }
+  if(n){lines+=n;score+=[0,100,300,500,800][n]||1000;lev=1+Math.floor(lines/8);}
+}
+function tick(){
+  if(over)return;
+  if(!crash(px,py+1,piece)){py++;}
+  else{merge();clearLines();spawn();if(over)clearInterval(timer);}
+  draw();upd();
+}
+function rotate(){const p=piece[0].map((_,i)=>piece.map(r=>r[i]).reverse());if(!crash(px,py,p))piece=p;}
+function move(d){if(!crash(px+d,py,piece))px+=d;}
+function drop(){while(!crash(px,py+1,piece))py++;tick();}
+function upd(){
+  document.getElementById('score').textContent=score;
+  document.getElementById('lines').textContent=lines;
+  document.getElementById('lv').textContent=lev;
+}
+function cell(x,y,c,glow){
+  ctx.save();ctx.shadowColor=c;ctx.shadowBlur=glow||12;ctx.fillStyle=c;
+  ctx.beginPath();ctx.roundRect(x*C+1.5,y*C+1.5,C-3,C-3,4);ctx.fill();
+  ctx.shadowBlur=0;ctx.fillStyle='rgba(255,255,255,.35)';
+  ctx.beginPath();ctx.roundRect(x*C+3.5,y*C+3.5,C-12,4,2);ctx.fill();ctx.restore();
+}
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='rgba(3,2,10,.9)';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.save();ctx.strokeStyle='rgba(0,240,255,.10)';ctx.lineWidth=1;ctx.beginPath();
+  for(let i=1;i<W;i++){ctx.moveTo(i*C,0);ctx.lineTo(i*C,cv.height);}
+  for(let j=1;j<H;j++){ctx.moveTo(0,j*C);ctx.lineTo(cv.width,j*C);}
+  ctx.stroke();ctx.restore();
+  board.forEach((row,y)=>row.forEach((v,x)=>{if(v)cell(x,y,COLORS[v-1],10);}));
+  piece.forEach((row,j)=>row.forEach((v,i)=>{if(v)cell(px+i,py+j,COLORS[pi],18);}));
+  if(over){
+    ctx.save();ctx.fillStyle='rgba(5,3,16,.74)';ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.textAlign='center';ctx.shadowColor='#ff2bd6';ctx.shadowBlur=24;ctx.fillStyle='#fff';
+    ctx.font='bold 20px ui-monospace,monospace';
+    ctx.fillText('GAME OVER',cv.width/2,cv.height/2-8);
+    ctx.shadowColor='#00f0ff';ctx.shadowBlur=14;ctx.font='12px ui-monospace,monospace';
+    ctx.fillText('SCORE '+score,cv.width/2,cv.height/2+16);
+    ctx.fillText('点 🔄 重开',cv.width/2,cv.height/2+36);ctx.restore();
+  }
+}
+document.querySelectorAll('#pad .k[data-a]').forEach(b=>{
+  const act=b.dataset.a;
+  const go=e=>{
+    e.preventDefault();
+    if(act==='restart'){init();return;}
+    if(over)return;
+    if(act==='left')move(-1);
+    else if(act==='right')move(1);
+    else if(act==='down')tick();
+    else if(act==='rot')rotate();
+    else if(act==='drop')drop();
+    draw();
+  };
+  b.addEventListener('touchstart',go,{passive:false});
+  b.addEventListener('mousedown',go);
+});
+let tsx=0,tsy=0,moved=false;
+cv.addEventListener('touchstart',e=>{const t=e.touches[0];tsx=t.clientX;tsy=t.clientY;moved=false;},{passive:true});
+cv.addEventListener('touchmove',e=>{
+  if(over)return;
+  const t=e.touches[0],dx=t.clientX-tsx,dy=t.clientY-tsy;
+  if(Math.abs(dx)>26){move(dx>0?1:-1);tsx=t.clientX;moved=true;draw();}
+  else if(dy>30){tick();tsy=t.clientY;moved=true;}
+},{passive:true});
+cv.addEventListener('touchend',e=>{
+  if(over||moved)return;
+  const t=e.changedTouches[0],dx=t.clientX-tsx,dy=t.clientY-tsy;
+  if(Math.abs(dy)>24&&dy<0){rotate();draw();}else{drop();}
+});
+addEventListener('keydown',e=>{
+  if(e.key.toLowerCase()==='r'){init();return;}
+  if(over)return;
+  const k=e.key;
+  if(k==='ArrowLeft')move(-1);
+  else if(k==='ArrowRight')move(1);
+  else if(k==='ArrowUp')rotate();
+  else if(k==='ArrowDown')tick();
+  else if(k===' ')drop();
+  else return;
+  e.preventDefault();draw();
+});
+init();
+</script>
+</body>
+</html>

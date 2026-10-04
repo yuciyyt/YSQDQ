@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b1410">
+<title>军棋 · NEON JUNQI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{background:radial-gradient(circle at 50% 0%,#16241c,#05080a 70%);color:#e6fff0;overflow:hidden;
+  font-family:"Segoe UI",system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;
+  display:flex;flex-direction:column;align-items:center;
+  padding:calc(6px + env(safe-area-inset-top)) 8px calc(6px + env(safe-area-inset-bottom))}
+header{text-align:center;width:100%}
+h1{font-size:clamp(16px,4.4vw,23px);font-weight:900;letter-spacing:.26em;
+  background:linear-gradient(92deg,#8fe3b0,#ffd166,#ff8a5c);-webkit-background-clip:text;background-clip:text;
+  color:transparent;filter:drop-shadow(0 0 14px rgba(140,230,180,.4))}
+.sub{margin-top:1px;font-size:12px;color:#9fc8b0;min-height:17px;letter-spacing:.04em}
+.sub b{color:#ffd166}
+canvas{display:block;margin:5px auto;border-radius:13px;
+  box-shadow:0 0 30px rgba(120,220,160,.16),0 12px 28px rgba(0,0,0,.6);touch-action:none}
+.bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:97vw}
+button,select{font-family:inherit;cursor:pointer;font-size:12px;font-weight:800;letter-spacing:.04em;
+  padding:9px 12px;border-radius:10px;color:#e6fff0;border:1px solid rgba(120,220,160,.4);
+  background:linear-gradient(180deg,rgba(120,220,160,.18),rgba(120,220,160,.05));transition:.15s}
+button:hover,select:hover{border-color:rgba(120,220,160,.85);box-shadow:0 0 16px rgba(120,220,160,.3)}
+button:active{transform:scale(.96)}
+button.primary{background:linear-gradient(180deg,rgba(255,180,90,.28),rgba(255,120,140,.12));border-color:rgba(255,180,90,.5)}
+select{background-color:#101c16;color:#e6fff0;padding:9px 5px}
+#bgmBtn{position:fixed;right:9px;top:calc(9px + env(safe-area-inset-top));z-index:8;width:40px;height:40px;
+  padding:0;border-radius:50%;font-size:16px;display:grid;place-items:center;
+  border:1px solid rgba(120,220,160,.45);background:rgba(10,20,16,.8);color:#e6fff0;backdrop-filter:blur(6px)}
+.ov{position:fixed;inset:0;z-index:6;display:none;place-items:center;padding:18px;overflow:auto;
+  background:radial-gradient(circle at 50% 40%,rgba(10,20,16,.86),rgba(3,6,4,.96));backdrop-filter:blur(6px)}
+.ov.on{display:grid}
+.card{width:min(430px,92vw);padding:22px 20px;border-radius:20px;text-align:center;
+  background:linear-gradient(160deg,rgba(20,38,28,.96),rgba(6,12,9,.97));
+  border:1px solid rgba(120,220,160,.36);box-shadow:0 0 44px rgba(120,220,160,.16)}
+.card h2{font-size:24px;font-weight:900;letter-spacing:.18em;color:#eefff6}
+.card p{margin-top:11px;font-size:13.5px;color:#9fc8b0;line-height:1.85}
+.card p b{color:#ffd166}
+.card .rule{margin-top:12px;text-align:left;font-size:12.5px;line-height:1.95;color:#9fc8b0}
+.card .row{margin-top:18px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<button id="bgmBtn" title="背景音乐开关">🔊</button>
+<header>
+  <h1>军 棋</h1>
+  <div class="sub" id="status">蓝方先行</div>
+</header>
+<canvas id="cv"></canvas>
+<div class="bar">
+  <select id="mm">
+    <option value="local" selected>双人同屏（暗棋）</option>
+    <option value="ai">人机对战（你执蓝）</option>
+  </select>
+  <button id="undo">悔 棋</button>
+  <button id="help">规则</button>
+  <button class="primary" id="restart">重 开</button>
+</div>
+
+<div class="ov" id="ov"><div class="card">
+  <h2 id="ovt">胜 利</h2>
+  <p id="ovp"></p>
+  <div class="row"><button class="primary" id="ovb">再 来 一 局</button></div>
+</div></div>
+<div class="ov" id="hp"><div class="card">
+  <h2>规 则</h2>
+  <div class="rule">
+    ① 25 子：司令＞军长＞师长＞旅长＞团长＞营长＞连长＞排长＞工兵<br>
+    ② 相同等级<b>同归于尽</b>；<b>炸弹</b>与任何子同归于尽<br>
+    ③ <b>地雷</b>不能动，谁碰它谁死；只有<b>工兵能挖雷</b>（雷死兵活）<br>
+    ④ <b>军旗</b>不能动，被吃即输<br>
+    ⑤ <b>行营</b>（圆圈）：里面的棋子<b>不能被吃</b><br>
+    ⑥ <b>大本营</b>（方框）：棋子进去后不能再移动<br>
+    ⑦ <b>铁道</b>（粗线）：沿线可直行任意格；<b>工兵可拐弯</b>走整条铁道<br>
+    ⑧ 暗棋：对方棋子看不到，交战后才翻开
+  </div>
+  <div class="row"><button class="primary" id="hpb">知 了</button></div>
+</div></div>
+
+<script>
+'use strict';
+/* ===== 背景音乐（纯代码合成） ===== */
+var BGM = {
+  ctx:null, ready:false, on:true, vol:0.13, step:0, next:0, timer:null, mood:'tense', noise:null, mus:null, master:null,
+  moods:{
+    calm:  { root:110,   chords:[0,-2,-4,-5], pent:[0,3,5,7,10,12], eighth:0.215, hat:0.24, bass:0.26, arp:0.05 },
+    jump:  { root:130.8, chords:[0,5,-2,3],   pent:[0,2,4,7,9,12],  eighth:0.155, hat:0.50, bass:0.30, arp:0.06 },
+    tense: { root:98,    chords:[0,-1,-3,-5], pent:[0,1,3,5,7,10],  eighth:0.185, hat:0.22, bass:0.27, arp:0.05 },
+    battle:{ root:110,   chords:[0,-2,-4,-5], pent:[0,3,5,7,10,12], eighth:0.165, hat:0.55, bass:0.30, arp:0.06 },
+    cute:  { root:146.8, chords:[0,4,-3,2],   pent:[0,2,4,5,7,12],  eighth:0.170, hat:0.40, bass:0.24, arp:0.05 }
+  },
+  init:function(mood){
+    if (mood) this.mood = mood;
+    if (this.ctx){ this.resume(); return; }
+    try{
+      var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      var a = this.ctx = new AC();
+      var mg = this.master = a.createGain(); mg.gain.value = 0.55; mg.connect(a.destination);
+      var ms = this.mus = a.createGain(); ms.gain.value = 0; ms.connect(mg);
+      var n = Math.floor(a.sampleRate), b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
+      for (var i=0;i<n;i++) d[i] = Math.random()*2 - 1;
+      this.noise = b; this.ready = true;
+      var self = this;
+      this.timer = setInterval(function(){ self.tick(); }, 60);
+      this.apply();
+    }catch(e){ this.ready = false; }
+  },
+  resume:function(){ try{ if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); }catch(e){} },
+  apply:function(){
+    if (!this.ready) return;
+    var t = this.ctx.currentTime;
+    this.mus.gain.cancelScheduledValues(t);
+    this.mus.gain.setTargetAtTime(this.on ? this.vol : 0, t, 0.3);
+  },
+  toggle:function(){
+    this.on = !this.on;
+    try{ localStorage.setItem('bgm_on', this.on ? '1' : '0'); }catch(e){}
+    this.apply(); this.sync(); return this.on;
+  },
+  sync:function(){ var b = document.getElementById('bgmBtn'); if (b) b.textContent = this.on ? '🔊' : '🔇'; },
+  osc:function(type, f, dur, vol, when){
+    if (!this.ready) return;
+    var a = this.ctx, t = (when === undefined) ? a.currentTime : when;
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.setValueAtTime(Math.max(20, f), t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.mus); o.start(t); o.stop(t + dur + 0.03);
+  },
+  hat:function(when, vol){
+    if (!this.ready) return;
+    var a = this.ctx;
+    var s = a.createBufferSource(); s.buffer = this.noise; s.loop = true;
+    var fl = a.createBiquadFilter(); fl.type = 'highpass'; fl.frequency.value = 6800;
+    var g = a.createGain();
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.linearRampToValueAtTime(vol, when + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
+    s.connect(fl); fl.connect(g); g.connect(this.mus); s.start(when); s.stop(when + 0.06);
+  },
+  tick:function(){
+    if (!this.ready || !this.on) return;
+    this.resume();
+    var a = this.ctx, m = this.moods[this.mood] || this.moods.calm;
+    if (this.next < a.currentTime) this.next = a.currentTime + 0.06;
+    while (this.next < a.currentTime + 0.35){
+      var root = m.chords[((this.step / 8) | 0) % m.chords.length];
+      var f = function(s){ return m.root * Math.pow(2, s / 12); };
+      if (this.step % 8 === 0){
+        this.osc('triangle', f(root - 12), 0.62, m.bass, this.next);
+        this.osc('sawtooth', f(root - 24), 0.66, m.bass * 0.32, this.next);
+      }
+      if (this.step % 2 === 0) this.osc('square', f(root + 12 + m.pent[(this.step * 3) % m.pent.length]), 0.14, m.arp, this.next);
+      if (this.step % 8 === 6) this.osc('triangle', f(root + 24 + m.pent[this.step % m.pent.length]), 0.22, m.arp * 0.85, this.next);
+      this.hat(this.next, this.step % 4 === 0 ? m.hat : m.hat * 0.45);
+      this.step = (this.step + 1) % 32;
+      this.next += m.eighth;
+    }
+  }
+};
+var GAME_MOOD = 'tense';
+try{ BGM.on = (localStorage.getItem('bgm_on') !== '0'); }catch(e){ BGM.on = true; }
+function bgmBoot(){
+  BGM.init(GAME_MOOD); BGM.sync();
+  var b = document.getElementById('bgmBtn');
+  if (b && !b._wired){ b._wired = true; b.addEventListener('click', function(){ BGM.init(GAME_MOOD); BGM.toggle(); }); }
+}
+window.addEventListener('pointerdown', bgmBoot, { once:true });
+window.addEventListener('keydown', bgmBoot, { once:true });
+
+/* ================= 军棋核心 ================= */
+var COLS = 5, ROWS = 12, N = 60;
+var RANK = { SILING:9, JUNZHANG:8, SHIZHANG:7, LUZHANG:6, TUANZHANG:5, YINGZHANG:4,
+             LIANZHANG:3, PAIZHANG:2, GONGBING:1, MINE:0, BOMB:-1, FLAG:-2 };
+var NM = { SILING:'司令', JUNZHANG:'军长', SHIZHANG:'师长', LUZHANG:'旅长', TUANZHANG:'团长',
+           YINGZHANG:'营长', LIANZHANG:'连长', PAIZHANG:'排长', GONGBING:'工兵',
+           MINE:'地雷', BOMB:'炸弹', FLAG:'军旗' };
+var ARMY = ['SILING','JUNZHANG','SHIZHANG','SHIZHANG','LUZHANG','LUZHANG','TUANZHANG','TUANZHANG',
+            'YINGZHANG','YINGZHANG','LIANZHANG','LIANZHANG','LIANZHANG','PAIZHANG','PAIZHANG','PAIZHANG',
+            'GONGBING','GONGBING','GONGBING','MINE','MINE','MINE','BOMB','BOMB','FLAG'];
+var HQR = 0, HQB = 11, HQC = [1,3];          /* 大本营：第 1、3 列 */
+var CAMPS = [ [2,3],[1,2],[3,2],[1,4],[3,4], [2,8],[1,7],[3,7],[1,9],[3,9] ];
+var DIRS = [[0,-1],[0,1],[-1,0],[1,0]];
+var BRS = [], turn = 'b', sel = -1, movs = [], hist = [], over = false, busy = false, mode = 'local';
+var lastF = -1, lastT = -1, toastTxt = '', toastEnd = 0, battleMsg = '';
+var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+var CELL = 40, PAD = 12, DPR = 1;
+
+function ix3(c, r){ return r * COLS + c; }
+function colOf(i){ return i % COLS; }
+function rowOf(i){ return (i / COLS) | 0; }
+function otherS(s){ return s === 'r' ? 'b' : 'r'; }
+function isCamp(i){ for (var k=0;k<CAMPS.length;k++) if (ix3(CAMPS[k][0], CAMPS[k][1]) === i) return true; return false; }
+function isHQof(i, s){
+  var rr = (s === 'r') ? HQR : HQB;
+  return (rowOf(i) === rr) && (colOf(i) === 1 || colOf(i) === 3);
+}
+function isHQ(i){ return isHQof(i,'r') || isHQof(i,'b'); }
+function isRail(i){
+  var c = colOf(i), r = rowOf(i);
+  if ((c === 0 || c === 4) && r >= 1 && r <= 10) return true;
+  if ((r === 1 || r === 5 || r === 6 || r === 10)) return true;
+  return false;
+}
+function cloneB(){ var o = []; for (var i=0;i<N;i++) o.push(BRS[i] ? { s:BRS[i].s, t:BRS[i].t, rev:BRS[i].rev } : null); return o; }
+
+/* ---------- 摆放 ---------- */
+function arrange(s){
+  var cells = [], i;
+  var top = (s === 'r');
+  for (i=0;i<N;i++){
+    var r = rowOf(i);
+    if (top ? (r > 5) : (r < 6)) continue;
+    if (isCamp(i)) continue;
+    cells.push(i);
+  }
+  var used = {}, res = {}, k;
+  /* 军旗进大本营 */
+  var hq = [];
+  for (k=0;k<cells.length;k++) if (isHQof(cells[k], s)) hq.push(cells[k]);
+  var f = hq[Math.floor(Math.random() * hq.length)];
+  res[f] = 'FLAG'; used[f] = 1;
+  /* 地雷放后两排 */
+  var back = [];
+  for (k=0;k<cells.length;k++){
+    var rr = rowOf(cells[k]);
+    var ok = top ? (rr <= 1) : (rr >= 10);
+    if (ok && !used[cells[k]]) back.push(cells[k]);
+  }
+  for (k=0;k<3;k++){
+    var bi = Math.floor(Math.random() * back.length);
+    res[back[bi]] = 'MINE'; used[back[bi]] = 1;
+    back.splice(bi, 1);
+  }
+  /* 炸弹不放最前排 */
+  var nb = [];
+  for (k=0;k<cells.length;k++){
+    var rr2 = rowOf(cells[k]);
+    var front = top ? (rr2 === 5) : (rr2 === 6);
+    if (!front && !used[cells[k]]) nb.push(cells[k]);
+  }
+  for (k=0;k<2;k++){
+    var ni = Math.floor(Math.random() * nb.length);
+    res[nb[ni]] = 'BOMB'; used[nb[ni]] = 1;
+    nb.splice(ni, 1);
+  }
+  /* 其余随机 */
+  var rest = [], pool = [];
+  for (k=0;k<ARMY.length;k++){
+    var t = ARMY[k];
+    if (t === 'FLAG' || t === 'MINE' || t === 'BOMB') continue;
+    pool.push(t);
+  }
+  for (k=0;k<cells.length;k++) if (!used[cells[k]]) rest.push(cells[k]);
+  for (k=0;k<rest.length;k++){
+    var pi = Math.floor(Math.random() * pool.length);
+    res[rest[k]] = pool[pi];
+    pool.splice(pi, 1);
+  }
+  return res;
+}
+function setup(){
+  BRS = [];
+  for (var i=0;i<N;i++) BRS.push(null);
+  var ar = arrange('r'), ab = arrange('b');
+  for (var k in ar) BRS[k] = { s:'r', t:ar[k], rev:false };
+  for (var k2 in ab) BRS[k2] = { s:'b', t:ab[k2], rev:false };
+  turn = 'b'; sel = -1; movs = []; hist = []; over = false; busy = false;
+  lastF = -1; lastT = -1; battleMsg = '';
+  document.getElementById('ov').classList.remove('on');
+  setStatus(); draw();
+  if (isAI(turn)) aiTurn();
+}
+function isAI(s){ return mode === 'ai' && s === 'r'; }
+function setStatus(){
+  var el = document.getElementById('status');
+  if (over) return;
+  var who = turn === 'b' ? '蓝方' : '红方';
+  el.innerHTML = '轮到 <b>' + who + '</b>' + (isAI(turn) ? '（电脑）' : '') +
+    (battleMsg ? ' · ' + battleMsg : '');
+}
+function toast(m){ toastTxt = m; toastEnd = performance.now() + 1500; draw(); }
+
+/* ---------- 走法 ---------- */
+function canMovePiece(i){
+  var p = BRS[i];
+  if (!p) return false;
+  if (p.t === 'MINE' || p.t === 'FLAG') return false;
+  if (isHQ(i)) return false;
+  return true;
+}
+function railStraight(i){
+  var out = [], p = BRS[i];
+  for (var d=0; d<4; d++){
+    var dc = DIRS[d][0], dr = DIRS[d][1];
+    var nc = colOf(i) + dc, nr = rowOf(i) + dr;
+    while (nc >= 0 && nc < COLS && nr >= 0 && nr < ROWS){
+      var j = nr * COLS + nc;
+      if (!isRail(j)) break;
+      if (BRS[j]){
+        if (BRS[j].s !== p.s && !isCamp(j)) out.push(j);
+        break;
+      }
+      out.push(j);
+      nc += dc; nr += dr;
+    }
+  }
+  return out;
+}
+function railEngineer(i){
+  var out = [], seen = {}, Q = [i], head = 0;
+  seen[i] = true;
+  var p = BRS[i];
+  while (head < Q.length){
+    var cur = Q[head++];
+    for (var d=0; d<4; d++){
+      var nc = colOf(cur) + DIRS[d][0], nr = rowOf(cur) + DIRS[d][1];
+      if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) continue;
+      var j = nr * COLS + nc;
+      if (!isRail(j) || seen[j]) continue;
+      seen[j] = true;
+      if (BRS[j]){
+        if (BRS[j].s !== p.s && !isCamp(j)) out.push(j);
+      } else {
+        out.push(j); Q.push(j);
+      }
+    }
+  }
+  return out;
+}
+function legalFor(i){
+  var p = BRS[i];
+  if (!p || !canMovePiece(i)) return [];
+  var out = [], seen = {};
+  var k;
+  for (k=0;k<4;k++){
+    var nc = colOf(i) + DIRS[k][0], nr = rowOf(i) + DIRS[k][1];
+    if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) continue;
+    var j = nr * COLS + nc;
+    if (BRS[j]){
+      if (BRS[j].s === p.s) continue;
+      if (isCamp(j)) continue;                 /* 行营里的子不能吃 */
+      out.push(j);
+    } else out.push(j);
+  }
+  if (isRail(i)){
+    var rm = (p.t === 'GONGBING') ? railEngineer(i) : railStraight(i);
+    for (k=0;k<rm.length;k++) out.push(rm[k]);
+  }
+  var res = [], m2 = {};
+  for (k=0;k<out.length;k++){ if (!m2[out[k]]){ m2[out[k]] = 1; res.push(out[k]); } }
+  return res;
+}
+function hasFlag(s){
+  for (var i=0;i<N;i++) if (BRS[i] && BRS[i].s === s && BRS[i].t === 'FLAG') return true;
+  return false;
+}
+function hasMove(s){
+  for (var i=0;i<N;i++){
+    if (!BRS[i] || BRS[i].s !== s) continue;
+    if (legalFor(i).length) return true;
+  }
+  return false;
+}
+
+/* ---------- 交战 ---------- */
+function fight(att, def){
+  var A = BRS[att], D = BRS[def];
+  var msg = '';
+  A.rev = true; D.rev = true;
+  if (D.t === 'FLAG'){
+    BRS[def] = A; BRS[att] = null;
+    over = true; finish(A.s, '夺旗成功！');
+    return;
+  }
+  if (A.t === 'BOMB' || D.t === 'BOMB'){
+    BRS[def] = null; BRS[att] = null;
+    msg = '炸弹同归于尽！';
+  } else if (D.t === 'MINE'){
+    if (A.t === 'GONGBING'){
+      BRS[def] = A; BRS[att] = null;
+      msg = '工兵挖雷成功！';
+    } else {
+      BRS[att] = null;
+      msg = '撞上地雷，' + NM[A.t] + '阵亡！';
+    }
+  } else {
+    var ra = RANK[A.t], rd = RANK[D.t];
+    if (ra > rd){ BRS[def] = A; BRS[att] = null; msg = NM[A.t] + ' 吃掉 ' + NM[D.t] + '！'; }
+    else if (ra < rd){ BRS[att] = null; msg = NM[A.t] + ' 被 ' + NM[D.t] + ' 吃掉！'; }
+    else { BRS[def] = null; BRS[att] = null; msg = '同级相遇，同归于尽！'; }
+  }
+  battleMsg = msg;
+  if (BGM.ready){
+    BGM.osc('sawtooth', 260, 0.18, 0.06);
+    BGM.osc('square', 420, 0.1, 0.045, BGM.ctx.currentTime + 0.05);
+  }
+}
+function doMove(f, t){
+  hist.push({ b: cloneB(), turn: turn, lf: lastF, lt: lastT, bm: battleMsg });
+  if (hist.length > 150) hist.shift();
+  battleMsg = '';
+  if (BRS[t]) fight(f, t);
+  else { BRS[t] = BRS[f]; BRS[f] = null; if (BGM.ready) BGM.osc('sine', 620, 0.06, 0.035); }
+  lastF = f; lastT = t;
+  if (over){ draw(); return true; }
+  var opp = otherS(turn);
+  if (!hasFlag(opp)){ over = true; finish(turn, '对方军旗已被拿下！'); draw(); return true; }
+  if (!hasMove(opp)){ over = true; finish(turn, '对方已无子可动！'); draw(); return true; }
+  turn = opp;
+  setStatus(); draw();
+  if (isAI(turn)) aiTurn();
+  return false;
+}
+function finish(side, why){
+  var who = side === 'b' ? '蓝方' : '红方';
+  document.getElementById('ovt').textContent = '🎉 ' + who + ' 胜 利';
+  document.getElementById('ovp').innerHTML = why;
+  document.getElementById('ov').classList.add('on');
+  if (BGM.ready){
+    var t0 = BGM.ctx.currentTime;
+    BGM.osc('triangle', 523, 0.26, 0.09, t0);
+    BGM.osc('triangle', 784, 0.26, 0.09, t0 + 0.12);
+    BGM.osc('triangle', 1046, 0.42, 0.09, t0 + 0.24);
+  }
+}
+
+/* ---------- AI（不看对方暗棋，只凭已翻开的记忆） ---------- */
+function aiTurn(){
+  if (over || busy) return;
+  busy = true;
+  setStatus();
+  setTimeout(function(){
+    busy = false;
+    var best = null, bv = -1e9;
+    for (var i=0;i<N;i++){
+      var p = BRS[i];
+      if (!p || p.s !== 'r') continue;
+      var ms = legalFor(i);
+      for (var k=0;k<ms.length;k++){
+        var t = ms[k], v = 0;
+        var dBefore = Math.abs(colOf(i) - 2) + Math.abs(rowOf(i) - 11);
+        var dAfter = Math.abs(colOf(t) - 2) + Math.abs(rowOf(t) - 11);
+        v += (dBefore - dAfter) * 4;
+        if (isCamp(t)) v += 16;
+        var q = BRS[t];
+        if (q){
+          if (q.rev){
+            var rq = RANK[q.t];
+            if (q.t === 'FLAG') v += 400;
+            else if (q.t === 'MINE') v += (p.t === 'GONGBING' ? 90 : -80);
+            else if (q.t === 'BOMB') v -= 10;
+            else v += (RANK[p.t] - rq) * 22;
+          } else {
+            v += 12 + RANK[p.t] * 2;
+          }
+        }
+        if (p.t === 'BOMB') v -= 20;
+        if (p.t === 'SILING') v -= 8;
+        v += Math.random() * 5;
+        if (v > bv){ bv = v; best = [i, t]; }
+      }
+    }
+    if (!best){ over = true; finish('b', '红方已无子可动！'); return; }
+    var done = doMove(best[0], best[1]);
+    if (!done && isAI(turn)) aiTurn();
+  }, 320);
+}
+
+/* ---------- 绘制 ---------- */
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  var availW = window.innerWidth - 16;
+  var availH = window.innerHeight - 176;
+  CELL = Math.max(20, Math.floor(Math.min(availW / 5.8, availH / 13.2)));
+  PAD = Math.round(CELL * 0.55);
+  var w = CELL * 4 + PAD * 2, h = CELL * 11 + PAD * 2;
+  cv.width = Math.round(w * DPR); cv.height = Math.round(h * DPR);
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  draw();
+}
+window.addEventListener('resize', resize);
+function PXc(c){ return PAD + c * CELL; }
+function PYr(r){ return PAD + r * CELL; }
+
+function draw(){
+  var w = CELL * 4 + PAD * 2, h = CELL * 11 + PAD * 2;
+  ctx.clearRect(0, 0, w, h);
+  var g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, '#152a20'); g.addColorStop(.5, '#0e1e16'); g.addColorStop(1, '#08120d');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  /* 棋盘格子 */
+  for (var i=0;i<N;i++){
+    var X = PXc(colOf(i)), Y = PYr(rowOf(i));
+    ctx.fillStyle = 'rgba(255,255,255,.035)';
+    ctx.fillRect(X - CELL*.34, Y - CELL*.34, CELL*.68, CELL*.68);
+    ctx.strokeStyle = 'rgba(140,230,180,.15)'; ctx.lineWidth = 1;
+    ctx.strokeRect(X - CELL*.34, Y - CELL*.34, CELL*.68, CELL*.68);
+  }
+  /* 铁道 */
+  ctx.strokeStyle = 'rgba(255,210,140,.42)'; ctx.lineWidth = 2.4;
+  for (i=0;i<N;i++){
+    var c = colOf(i), r = rowOf(i);
+    if (!isRail(i)) continue;
+    var X2 = PXc(c), Y2 = PYr(r);
+    if (isRail(i + 1) && c < 4){
+      ctx.beginPath(); ctx.moveTo(X2, Y2); ctx.lineTo(PXc(c+1), PYr(r)); ctx.stroke();
+    }
+    if (r < 11 && isRail(i + COLS)){
+      ctx.beginPath(); ctx.moveTo(X2, Y2); ctx.lineTo(PXc(c), PYr(r+1)); ctx.stroke();
+    }
+  }
+  /* 行营 */
+  for (var k=0;k<CAMPS.length;k++){
+    var ci = ix3(CAMPS[k][0], CAMPS[k][1]);
+    ctx.beginPath();
+    ctx.arc(PXc(colOf(ci)), PYr(rowOf(ci)), CELL*.30, 0, Math.PI*2);
+    ctx.strokeStyle = 'rgba(140,255,200,.55)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = 'rgba(140,255,200,.08)'; ctx.fill();
+  }
+  /* 大本营 */
+  var hqs = [ix3(1,0), ix3(3,0), ix3(1,11), ix3(3,11)];
+  for (k=0;k<4;k++){
+    var hi = hqs[k];
+    ctx.strokeStyle = 'rgba(255,180,90,.7)'; ctx.lineWidth = 2.2;
+    ctx.strokeRect(PXc(colOf(hi)) - CELL*.32, PYr(rowOf(hi)) - CELL*.32, CELL*.64, CELL*.64);
+  }
+  /* 可走点 */
+  for (k=0;k<movs.length;k++){
+    var mi = movs[k];
+    ctx.beginPath();
+    ctx.arc(PXc(colOf(mi)), PYr(rowOf(mi)), CELL*.18, 0, Math.PI*2);
+    ctx.fillStyle = BRS[mi] ? 'rgba(255,90,90,.85)' : 'rgba(140,255,190,.7)';
+    ctx.fill();
+  }
+  /* 棋子 */
+  for (i=0;i<N;i++) if (BRS[i]) drawPiece2(i, BRS[i]);
+  if (sel >= 0){
+    ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.arc(PXc(colOf(sel)), PYr(rowOf(sel)), CELL*.40, 0, Math.PI*2);
+    ctx.stroke();
+  }
+  if (lastT >= 0){
+    ctx.strokeStyle = 'rgba(255,255,255,.32)'; ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(PXc(colOf(lastT)), PYr(rowOf(lastT)), CELL*.43, 0, Math.PI*2);
+    ctx.stroke();
+  }
+  if (performance.now() < toastEnd){
+    ctx.font = '700 ' + Math.round(CELL*.42) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    var tw = ctx.measureText(toastTxt).width + 20;
+    ctx.fillStyle = 'rgba(0,0,0,.75)';
+    ctx.beginPath(); ctx.rect(w/2 - tw/2, 3, tw, CELL*.78); ctx.fill();
+    ctx.fillStyle = '#ffe08a';
+    ctx.fillText(toastTxt, w/2, 3 + CELL*.39);
+  }
+}
+function drawPiece2(i, p){
+  var X = PXc(colOf(i)), Y = PYr(rowOf(i)), R = CELL*.36;
+  var mine = (p.s === 'b');
+  var showFace = (p.s === turn) || p.rev;
+  var base = (p.s === 'b') ? '#3f8cff' : '#ff5c5c';
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2.5;
+  var rg = ctx.createRadialGradient(X - R*.3, Y - R*.35, R*.1, X, Y, R);
+  if (!showFace){ rg.addColorStop(0, '#4a5560'); rg.addColorStop(1, '#1b2229'); }
+  else { rg.addColorStop(0, '#ffffff'); rg.addColorStop(.5, base); rg.addColorStop(1, 'rgba(0,0,0,.55)'); }
+  ctx.beginPath(); ctx.arc(X, Y, R, 0, Math.PI*2);
+  ctx.fillStyle = rg; ctx.fill();
+  ctx.restore();
+  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = showFace ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.28)';
+  ctx.stroke();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (!showFace){
+    ctx.fillStyle = 'rgba(255,255,255,.5)';
+    ctx.font = '900 ' + Math.round(R*.95) + 'px sans-serif';
+    ctx.fillText('?', X, Y + 1);
+  } else {
+    ctx.fillStyle = '#fff';
+    var txt = NM[p.t];
+    var fs = (txt.length >= 2) ? R*.86 : R*1.02;
+    ctx.font = '900 ' + Math.round(fs) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillText(txt, X, Y + 1);
+  }
+}
+
+/* ---------- 交互 ---------- */
+function tap(ev){
+  if (over || busy) return;
+  if (isAI(turn)) return;
+  var rc = cv.getBoundingClientRect();
+  var mx, my;
+  if (ev.touches && ev.touches.length){ mx = ev.touches[0].clientX; my = ev.touches[0].clientY; }
+  else { mx = ev.clientX; my = ev.clientY; }
+  mx -= rc.left; my -= rc.top;
+  var best = -1, bd = (CELL*.6) * (CELL*.6);
+  for (var i=0;i<N;i++){
+    var dx = mx - PXc(colOf(i)), dy = my - PYr(rowOf(i));
+    var d = dx*dx + dy*dy;
+    if (d < bd){ bd = d; best = i; }
+  }
+  if (best < 0) return;
+  if (sel >= 0){
+    for (var k=0;k<movs.length;k++){
+      if (movs[k] === best){
+        var f = sel; sel = -1; movs = [];
+        doMove(f, best);
+        return;
+      }
+    }
+  }
+  if (BRS[best] && BRS[best].s === turn){
+    if (!canMovePiece(best)){ toast(BRS[best].t === 'MINE' ? '地雷不能移动' : (BRS[best].t === 'FLAG' ? '军旗不能移动' : '大本营里的棋子不能移动')); }
+    sel = best; movs = legalFor(best);
+    if (BRS[best] && !movs.length) toast('这枚棋子暂时走不了');
+    draw();
+    if (BGM.ready) BGM.osc('sine', 820, 0.05, 0.03);
+  } else {
+    if (BRS[best] && BRS[best].s !== turn) toast('这是对方的棋子');
+    sel = -1; movs = []; draw();
+  }
+}
+cv.addEventListener('mousedown', tap);
+cv.addEventListener('touchstart', function(e){ e.preventDefault(); tap(e); }, { passive:false });
+
+document.getElementById('mm').addEventListener('change', function(){ mode = this.value; setup(); resize(); });
+document.getElementById('restart').addEventListener('click', function(){ setup(); resize(); });
+document.getElementById('ovb').addEventListener('click', function(){ setup(); resize(); });
+document.getElementById('help').addEventListener('click', function(){ document.getElementById('hp').classList.add('on'); });
+document.getElementById('hpb').addEventListener('click', function(){ document.getElementById('hp').classList.remove('on'); });
+document.getElementById('undo').addEventListener('click', function(){
+  if (busy){ toast('电脑思考中…'); return; }
+  if (mode === 'ai' && turn !== 'b'){ toast('等电脑走完再悔棋'); return; }
+  if (!hist.length){ toast('没有可悔的棋'); return; }
+  var steps = (mode === 'ai' && hist.length >= 2) ? 2 : 1;
+  for (var i=0;i<steps;i++){
+    var h = hist.pop(); if (!h) break;
+    BRS = h.b; turn = h.turn; lastF = h.lf; lastT = h.lt; battleMsg = h.bm || '';
+  }
+  over = false; sel = -1; movs = [];
+  document.getElementById('ov').classList.remove('on');
+  setStatus(); draw();
+});
+
+setup();
+resize();
+</script>
+</body>
+</html>

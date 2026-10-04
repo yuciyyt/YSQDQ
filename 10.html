@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>猜数字 13 · 霓虹版</title>
+<style>
+:root{--cyan:#00f0ff;--magenta:#ff2bd6;--purple:#8b5cf6;--lime:#39ff14;--yellow:#ffe600;--bg:#05040d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;
+touch-action:manipulation;
+background:radial-gradient(circle at 15% 25%, rgba(139,92,246,.26), transparent 45%),
+radial-gradient(circle at 85% 75%, rgba(255,43,214,.20), transparent 45%),
+radial-gradient(circle at 50% 50%, #0c0a1e 0%, var(--bg) 70%);
+color:#eafcff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Microsoft YaHei",monospace;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+background-image:linear-gradient(rgba(0,240,255,.055) 1px,transparent 1px),
+linear-gradient(90deg,rgba(255,43,214,.055) 1px,transparent 1px);
+background-size:44px 44px;mask-image:radial-gradient(circle at 50% 50%,#000 30%,transparent 78%)}
+.wrap{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;max-width:400px}
+h1{font-size:20px;letter-spacing:.22em;margin:0 0 16px;color:#fff;
+text-shadow:0 0 6px var(--purple),0 0 18px var(--purple),0 0 42px rgba(139,92,246,.6)}
+.panel{width:100%;padding:22px 18px;border-radius:18px;background:rgba(10,8,26,.72);
+border:1px solid rgba(139,92,246,.45);
+box-shadow:0 0 0 1px rgba(0,240,255,.14) inset,0 0 24px rgba(139,92,246,.32),0 0 60px rgba(0,240,255,.18);text-align:center}
+#range{color:#cbb8ff;font-size:12px;letter-spacing:.08em}
+#tip{font-size:18px;font-weight:800;margin:18px 0;min-height:28px;color:var(--cyan);text-shadow:0 0 12px currentColor}
+.row{display:flex;gap:10px;justify-content:center}
+#guess{flex:1;padding:14px;border-radius:12px;border:1px solid rgba(0,240,255,.45);background:rgba(3,2,10,.85);
+color:#eafcff;font-family:inherit;font-size:18px;text-align:center;outline:none;box-shadow:0 0 14px rgba(0,240,255,.25)}
+#btn{padding:14px 22px;border-radius:12px;border:1px solid var(--magenta);background:rgba(255,43,214,.14);
+color:#fff;font-family:inherit;font-size:14px;letter-spacing:.12em;text-shadow:0 0 10px var(--magenta);
+box-shadow:0 0 18px rgba(255,43,214,.4);user-select:none}
+#log{max-height:130px;overflow:auto;margin-top:18px;font-size:12px;color:#8fa9c8;text-align:left}
+#log div{padding:3px 0;border-bottom:1px dashed rgba(139,92,246,.18)}
+.btn{margin-top:16px;padding:12px 26px;border-radius:14px;border:1px solid rgba(0,240,255,.5);
+background:rgba(0,240,255,.08);color:#eafcff;font-family:inherit;font-size:13px;letter-spacing:.14em;
+box-shadow:0 0 16px rgba(0,240,255,.3);user-select:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>NEON GUESS</h1>
+  <div class="panel">
+    <div id="range">我想好了一个 1 ~ 100 的整数，共 7 次机会</div>
+    <div id="tip">请输入你的猜测</div>
+    <div class="row">
+      <input id="guess" type="number" inputmode="numeric" min="1" max="100" placeholder="1-100">
+      <div id="btn">猜</div>
+    </div>
+    <div id="log"></div>
+  </div>
+  <div class="btn" id="reset">🔄 重新开始</div>
+</div>
+<script>
+const tip=document.getElementById('tip'),log=document.getElementById('log');
+const input=document.getElementById('guess'),btn=document.getElementById('btn');
+let target,chances,tries,over,best=+(localStorage.getItem('guessNeonBest')||0);
+function init(){
+  target=Math.floor(Math.random()*100)+1;
+  chances=7;tries=0;over=false;
+  log.innerHTML='';
+  input.value='';input.disabled=false;
+  tip.textContent='请输入你的猜测';
+  tip.style.color='#00f0ff';
+}
+function add(t,c){
+  const d=document.createElement('div');
+  d.textContent=t;if(c){d.style.color=c;d.style.textShadow='0 0 8px '+c;}
+  log.prepend(d);
+}
+function guess(){
+  if(over)return;
+  const v=parseInt(input.value,10);
+  if(!v||v<1||v>100){tip.textContent='请输入 1~100 的整数';tip.style.color='#ff8a00';return;}
+  tries++;chances--;
+  input.value='';
+  if(v===target){
+    over=true;input.disabled=true;
+    tip.textContent='🏆 猜对了！用了 '+tries+' 次';
+    tip.style.color='#39ff14';
+    add('第 '+tries+' 次：'+v+' → 正确！','#39ff14');
+    if(!best||tries<best){best=tries;localStorage.setItem('guessNeonBest',best);}
+    add('历史最佳成绩：'+best+' 次','#8b5cf6');
+    return;
+  }
+  const low=v<target;
+  const hint=low?'太小了 ⬆':'太大了 ⬇';
+  const color=low?'#00f0ff':'#ff8a00';
+  add('第 '+tries+' 次：'+v+' → '+hint+(low?'（范围 '+(v+1)+'~100）':'（范围 1~'+(v-1)+'）'),color);
+  if(chances<=0){
+    over=true;input.disabled=true;
+    tip.textContent='💥 机会用完啦，答案是 '+target;
+    tip.style.color='#ff2bd6';
+    add('答案是 '+target,'#ff2bd6');
+    return;
+  }
+  tip.textContent=hint+'　还剩 '+chances+' 次';
+  tip.style.color=color;
+}
+btn.addEventListener('click',guess);
+input.addEventListener('keydown',e=>{if(e.key==='Enter')guess();});
+document.getElementById('reset').addEventListener('click',init);
+addEventListener('keydown',e=>{if(e.key.toLowerCase()==='r')init();});
+init();
+</script>
+</body>
+</html>

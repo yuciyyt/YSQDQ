@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>井字棋 08 · 霓虹版</title>
+<style>
+:root{--cyan:#00f0ff;--magenta:#ff2bd6;--purple:#8b5cf6;--lime:#39ff14;--bg:#05040d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;
+touch-action:manipulation;
+background:radial-gradient(circle at 18% 18%, rgba(0,240,255,.22), transparent 45%),
+radial-gradient(circle at 82% 82%, rgba(255,43,214,.22), transparent 45%),
+radial-gradient(circle at 50% 50%, #0c0a1e 0%, var(--bg) 70%);
+color:#eafcff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Microsoft YaHei",monospace;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+background-image:linear-gradient(rgba(0,240,255,.055) 1px,transparent 1px),
+linear-gradient(90deg,rgba(255,43,214,.055) 1px,transparent 1px);
+background-size:44px 44px;mask-image:radial-gradient(circle at 50% 50%,#000 30%,transparent 78%)}
+.wrap{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;max-width:420px}
+h1{font-size:20px;letter-spacing:.2em;margin:0 0 12px;color:#fff;
+text-shadow:0 0 6px var(--cyan),0 0 20px var(--cyan),0 0 44px rgba(0,240,255,.5)}
+.hud{font-size:13px;letter-spacing:.1em;color:#9ef6ff;margin-bottom:14px}
+.hud b{color:#fff;text-shadow:0 0 10px var(--magenta)}
+.panel{padding:12px;border-radius:18px;background:rgba(10,8,26,.7);border:1px solid rgba(0,240,255,.32);
+box-shadow:0 0 0 1px rgba(255,43,214,.16) inset,0 0 24px rgba(0,240,255,.26),0 0 60px rgba(255,43,214,.18)}
+#box{display:grid;grid-template-columns:repeat(3,min(26vw,92px));grid-template-rows:repeat(3,min(26vw,92px));gap:10px}
+.cell{background:rgba(255,255,255,.03);border:1px solid rgba(0,240,255,.22);border-radius:14px;
+display:flex;align-items:center;justify-content:center;font-size:min(12vw,46px);font-weight:800;user-select:none;
+box-shadow:inset 0 0 14px rgba(0,240,255,.10);color:#cfe9ff;transition:.15s}
+.cell:active{background:rgba(0,240,255,.12)}
+.cell.X{color:var(--cyan);text-shadow:0 0 10px var(--cyan),0 0 26px rgba(0,240,255,.8);border-color:rgba(0,240,255,.55)}
+.cell.O{color:var(--magenta);text-shadow:0 0 10px var(--magenta),0 0 26px rgba(255,43,214,.8);border-color:rgba(255,43,214,.55)}
+#msg{min-height:26px;margin-top:14px;font-size:14px;letter-spacing:.08em;color:#eafcff;
+text-shadow:0 0 10px rgba(0,240,255,.7);text-align:center}
+.btn{margin-top:12px;padding:12px 26px;border-radius:14px;border:1px solid rgba(0,240,255,.55);
+background:rgba(0,240,255,.08);color:#eafcff;font-family:inherit;font-size:13px;letter-spacing:.16em;
+box-shadow:0 0 18px rgba(0,240,255,.35);user-select:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>NEON TIC-TAC-TOE</h1>
+  <div class="hud">你 = <b>X</b>　电脑 = <b>O</b>　比分 <b id="sc">0 : 0</b></div>
+  <div class="panel"><div id="box"></div></div>
+  <div id="msg">你先手，点格子落子</div>
+  <div class="btn" id="reset">🔄 重新开始</div>
+</div>
+<script>
+const box=document.getElementById('box');
+const WINS=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+let board,turn,over,win=0,lose=0;
+function init(){
+  board=Array(9).fill('');turn='X';over=false;
+  document.getElementById('msg').textContent='你先手，点格子落子';
+  box.innerHTML='';
+  for(let i=0;i<9;i++){
+    const d=document.createElement('div');
+    d.className='cell';
+    d.addEventListener('click',()=>play(i));
+    box.appendChild(d);
+  }
+  render();
+}
+function render(){
+  box.childNodes.forEach((d,i)=>{
+    d.textContent=board[i];
+    d.className='cell'+(board[i]?' '+board[i]:'');
+  });
+  document.getElementById('sc').textContent=win+' : '+lose;
+}
+function winner(b){
+  for(const w of WINS){const t=w[0],a=w[1],c=w[2];
+    if(b[t]&&b[t]===b[a]&&b[a]===b[c])return {p:b[t]};}
+  return null;
+}
+function play(i){
+  if(over||board[i]||turn!=='X')return;
+  board[i]='X';render();
+  const w=winner(board);
+  if(w){finish(w.p);return;}
+  if(board.every(v=>v)){over=true;document.getElementById('msg').textContent='平局！';return;}
+  turn='O';
+  document.getElementById('msg').textContent='电脑思考中…';
+  setTimeout(aiMove,320);
+}
+function aiMove(){
+  if(over)return;
+  const i=bestMove();
+  board[i]='O';render();
+  const w=winner(board);
+  if(w){finish(w.p);return;}
+  if(board.every(v=>v)){over=true;document.getElementById('msg').textContent='平局！';return;}
+  turn='X';
+  document.getElementById('msg').textContent='轮到你了';
+}
+function bestMove(){
+  let best=-99,move=-1;
+  for(let i=0;i<9;i++){
+    if(board[i])continue;
+    board[i]='O';
+    const s=minimax(board,false);
+    board[i]='';
+    if(s>best){best=s;move=i;}
+  }
+  return move;
+}
+function minimax(b,maxing){
+  const w=winner(b);
+  if(w)return w.p==='O'?1:-1;
+  if(b.every(v=>v))return 0;
+  if(maxing){
+    let best=-9;
+    for(let i=0;i<9;i++){if(b[i])continue;b[i]='O';best=Math.max(best,minimax(b,false));b[i]='';}
+    return best;
+  }else{
+    let best=9;
+    for(let i=0;i<9;i++){if(b[i])continue;b[i]='X';best=Math.min(best,minimax(b,true));b[i]='';}
+    return best;
+  }
+}
+function finish(p){
+  over=true;
+  if(p==='X'){win++;document.getElementById('msg').textContent='🏆 YOU WIN！';}
+  else{lose++;document.getElementById('msg').textContent='😅 CPU WINS，再来一局？';}
+  render();
+}
+document.getElementById('reset').addEventListener('click',init);
+addEventListener('keydown',e=>{if(e.key.toLowerCase()==='r')init();});
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>反应力测试 20 · 霓虹版</title>
+<style>
+:root{--cyan:#00f0ff;--magenta:#ff2bd6;--purple:#8b5cf6;--lime:#39ff14;--yellow:#ffe600;--bg:#05040d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;
+touch-action:manipulation;
+background:radial-gradient(circle at 18% 22%, rgba(255,43,214,.20), transparent 45%),
+radial-gradient(circle at 82% 78%, rgba(0,240,255,.20), transparent 45%),
+radial-gradient(circle at 50% 50%, #0c0a1e 0%, var(--bg) 70%);
+color:#eafcff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Microsoft YaHei",monospace;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+background-image:linear-gradient(rgba(0,240,255,.055) 1px,transparent 1px),
+linear-gradient(90deg,rgba(255,43,214,.055) 1px,transparent 1px);
+background-size:44px 44px;mask-image:radial-gradient(circle at 50% 50%,#000 30%,transparent 78%)}
+.wrap{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;max-width:440px}
+h1{font-size:20px;letter-spacing:.22em;margin:0 0 8px;color:#fff;
+text-shadow:0 0 6px var(--lime),0 0 18px var(--cyan),0 0 42px rgba(0,240,255,.5)}
+.hud{font-size:12px;letter-spacing:.1em;color:#9ef6ff;margin-bottom:14px;text-align:center}
+#pad{width:100%;height:min(52vh,300px);border-radius:22px;display:flex;flex-direction:column;align-items:center;
+justify-content:center;user-select:none;text-align:center;transition:.12s;padding:16px;
+background:rgba(255,255,255,.03);border:1px solid rgba(0,240,255,.45);
+box-shadow:0 0 26px rgba(0,240,255,.3),inset 0 0 30px rgba(0,240,255,.12)}
+#big{font-size:min(7vw,28px);font-weight:800;letter-spacing:.06em;margin-bottom:10px;text-shadow:0 0 14px currentColor}
+#sub{font-size:12px;letter-spacing:.08em;color:#9fb6d8;line-height:1.6}
+#pad.wait{background:rgba(255,43,214,.14);border-color:var(--magenta);
+box-shadow:0 0 40px rgba(255,43,214,.55),inset 0 0 34px rgba(255,43,214,.2)}
+#pad.go{background:rgba(57,255,20,.14);border-color:var(--lime);
+box-shadow:0 0 46px rgba(57,255,20,.65),inset 0 0 34px rgba(57,255,20,.22)}
+#pad.done{background:rgba(255,255,255,.03);border-color:rgba(0,240,255,.45)}
+#rounds{margin-top:16px;font-size:12px;letter-spacing:.1em;color:#9ef6ff;display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+#rounds b{color:#fff;text-shadow:0 0 10px var(--yellow)}
+#msg{min-height:22px;margin-top:12px;font-size:12px;color:var(--cyan);text-shadow:0 0 10px rgba(0,240,255,.75);text-align:center}
+.btn{margin-top:12px;padding:12px 26px;border-radius:14px;border:1px solid var(--magenta);background:rgba(255,43,214,.12);
+color:#fff;font-family:inherit;font-size:13px;letter-spacing:.14em;text-shadow:0 0 10px var(--magenta);
+box-shadow:0 0 18px rgba(255,43,214,.35);user-select:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>NEON REFLEX</h1>
+  <div class="hud">变绿的一瞬间<b>点屏幕</b>！共 5 轮</div>
+  <div id="pad" class="done">
+    <div id="big" style="color:#00f0ff">点屏幕开始</div>
+    <div id="sub">变绿后立刻点击，越接近 0 ms 越强</div>
+  </div>
+  <div id="rounds">第 <b id="rn">0</b>/5 轮　最快 <b id="fast">--</b> ms　平均 <b id="avg">--</b> ms</div>
+  <div id="msg"></div>
+  <div class="btn" id="reset">🔄 重新开始</div>
+</div>
+<script>
+const pad=document.getElementById('pad'),big=document.getElementById('big'),sub=document.getElementById('sub');
+const msg=document.getElementById('msg');
+let state='idle',timer,t0,rounds=[],round=0;
+function reset(){
+  clearTimeout(timer);state='idle';rounds=[];round=0;
+  pad.className='done';
+  big.textContent='点屏幕开始';big.style.color='#00f0ff';
+  sub.textContent='变绿后立刻点击，越接近 0 ms 越强';
+  msg.textContent='';
+  document.getElementById('rn').textContent=0;
+  document.getElementById('fast').textContent='--';
+  document.getElementById('avg').textContent='--';
+}
+function nextRound(){
+  round++;
+  document.getElementById('rn').textContent=round;
+  state='waiting';
+  pad.className='wait';
+  big.textContent='WAIT...';big.style.color='#ff2bd6';
+  sub.textContent='别急，变绿再点！';
+  msg.textContent='';
+  const delay=1200+Math.random()*2600;
+  timer=setTimeout(()=>{
+    state='go';t0=performance.now();
+    pad.className='go';
+    big.textContent='NOW !';big.style.color='#39ff14';
+    sub.textContent='';
+  },delay);
+}
+function report(){
+  const fast=Math.min.apply(null,rounds);
+  const avg=Math.round(rounds.reduce((a,b)=>a+b,0)/rounds.length);
+  document.getElementById('fast').textContent=fast;
+  document.getElementById('avg').textContent=avg;
+  let rank='继续加油 💪';
+  if(avg<200)rank='职业电竞级 🏆';
+  else if(avg<260)rank='反应敏捷 ⚡';
+  else if(avg<330)rank='正常水平 👍';
+  msg.textContent='本轮 '+rounds[rounds.length-1]+' ms　·　'+rank;
+}
+function tap(){
+  if(state==='idle'||state==='done'){reset();nextRound();return;}
+  if(state==='waiting'){
+    clearTimeout(timer);state='done';rounds=[];
+    pad.className='done';
+    big.textContent='TOO EARLY !';big.style.color='#ff2bd6';
+    sub.textContent='点屏幕重新开始';
+    msg.textContent='😅 抢跑了，本轮作废，重新来';
+    round=0;return;
+  }
+  if(state==='go'){
+    const rt=Math.round(performance.now()-t0);
+    rounds.push(rt);
+    state='done';
+    pad.className='done';
+    report();
+    if(rounds.length>=5){
+      const avg=Math.round(rounds.reduce((a,b)=>a+b,0)/rounds.length);
+      big.textContent='AVG '+avg+' ms';big.style.color='#00f0ff';
+      sub.textContent='点屏幕再来一次';
+      msg.textContent='最快 '+Math.min.apply(null,rounds)+' ms　各轮：'+rounds.join(' / ')+' ms';
+    }else{
+      big.textContent=rt+' ms';
+      big.style.color=rt<260?'#39ff14':'#ffe600';
+      sub.textContent='点屏幕进入下一轮';
+    }
+  }
+}
+pad.addEventListener('touchstart',e=>{e.preventDefault();tap();},{passive:false});
+pad.addEventListener('click',tap);
+document.getElementById('reset').addEventListener('click',reset);
+addEventListener('keydown',e=>{
+  if(e.key.toLowerCase()==='r'){reset();return;}
+  if(e.key===' '){tap();e.preventDefault();}
+});
+</script>
+</body>
+</html>

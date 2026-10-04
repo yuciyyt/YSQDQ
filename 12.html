@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>打砖块 03 · 霓虹版</title>
+<style>
+:root{--cyan:#00f0ff;--magenta:#ff2bd6;--purple:#8b5cf6;--lime:#39ff14;--yellow:#ffe600;--bg:#05040d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;
+touch-action:manipulation;
+background:radial-gradient(circle at 20% 85%, rgba(255,43,214,.20), transparent 45%),
+radial-gradient(circle at 80% 15%, rgba(0,240,255,.20), transparent 45%),
+radial-gradient(circle at 50% 50%, #0c0a1e 0%, var(--bg) 70%);
+color:#eafcff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Microsoft YaHei",monospace;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+background-image:linear-gradient(rgba(0,240,255,.055) 1px,transparent 1px),
+linear-gradient(90deg,rgba(255,43,214,.055) 1px,transparent 1px);
+background-size:44px 44px;mask-image:radial-gradient(circle at 50% 50%,#000 30%,transparent 78%)}
+.wrap{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;max-width:420px}
+h1{font-size:20px;letter-spacing:.24em;margin:0 0 10px;color:#fff;
+text-shadow:0 0 6px var(--magenta),0 0 18px var(--magenta),0 0 42px rgba(255,43,214,.5)}
+.hud{display:flex;gap:18px;margin-bottom:12px;font-size:13px;letter-spacing:.12em;color:#ffd8f5}
+.hud b{color:#fff;text-shadow:0 0 9px var(--cyan)}
+.panel{padding:10px;border-radius:18px;background:rgba(10,8,26,.72);border:1px solid rgba(255,43,214,.35);
+box-shadow:0 0 0 1px rgba(0,240,255,.16) inset,0 0 22px rgba(255,43,214,.28),0 0 60px rgba(0,240,255,.22)}
+canvas{display:block;border-radius:10px;background:rgba(3,2,10,.92);width:min(88vw,400px);height:auto;touch-action:none;
+box-shadow:0 0 26px rgba(255,43,214,.25) inset}
+#ctl{display:flex;gap:14px;margin-top:16px}
+.k{width:70px;height:70px;border-radius:18px;background:rgba(255,255,255,.035);border:1px solid rgba(0,240,255,.4);
+color:#eafcff;font-size:22px;display:flex;align-items:center;justify-content:center;user-select:none;
+box-shadow:inset 0 0 16px rgba(0,240,255,.12)}
+.k:active{background:rgba(0,240,255,.18);box-shadow:0 0 22px rgba(0,240,255,.6)}
+.k.fire{border-color:var(--magenta);color:var(--magenta);font-size:13px;text-shadow:0 0 10px var(--magenta)}
+.tip{margin-top:14px;font-size:11px;color:#7c8fb3;text-align:center;line-height:1.7}
+.tip span{color:var(--cyan)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>NEON BREAKER</h1>
+  <div class="hud">分 <b id="score">0</b>　命 <b id="life">3</b>　关 <b id="lv">1</b></div>
+  <div class="panel"><canvas id="cv" width="420" height="420"></canvas></div>
+  <div id="ctl">
+    <div class="k" id="left">◀</div>
+    <div class="k fire" id="fire">发射 / 重开</div>
+    <div class="k" id="right">▶</div>
+  </div>
+  <div class="tip"><b>手指在画面上左右拖动</b>移动挡板　点画面也可发射<br>结束后点「发射 / 重开」重新开始</div>
+</div>
+<script>
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+const COLS=9,ROWS=5,BW=cv.width/COLS,BH=20,TOP=40;
+let bricks,paddle,ball,score,life,lev,running,over,timer,phase=0;
+const COLORS=['#ff2bd6','#8b5cf6','#00f0ff','#39ff14','#ffe600'];
+function init(keepScore){
+  if(!keepScore){score=0;life=3;lev=1;}
+  paddle={x:cv.width/2-55,y:cv.height-28,w:110,h:12};
+  bricks=[];
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)
+    bricks.push({x:c*BW,y:TOP+r*BH,w:BW-4,h:BH-4,c:COLORS[r],dead:false});
+  resetBall();running=false;over=false;upd();draw();
+  clearInterval(timer);timer=setInterval(loop,16);
+}
+function resetBall(){ball={x:cv.width/2,y:cv.height-70,r:8,vx:3.2,vy:-3.6};running=false;}
+function upd(){
+  document.getElementById('score').textContent=score;
+  document.getElementById('life').textContent=life;
+  document.getElementById('lv').textContent=lev;
+}
+function loop(){
+  if(running&&!over){
+    ball.x+=ball.vx;ball.y+=ball.vy;
+    if(ball.x<ball.r||ball.x>cv.width-ball.r)ball.vx*=-1;
+    if(ball.y<ball.r)ball.vy*=-1;
+    if(ball.y>cv.height){life--;upd();life<=0?(over=true,running=false):resetBall();}
+    if(ball.vy>0&&ball.y+ball.r>paddle.y&&ball.y+ball.r<paddle.y+paddle.h+10&&
+       ball.x>paddle.x-ball.r&&ball.x<paddle.x+paddle.w+ball.r){
+      ball.vy=-Math.abs(ball.vy);
+      ball.vx=((ball.x-(paddle.x+paddle.w/2))/(paddle.w/2))*4;
+    }
+    bricks.forEach(b=>{
+      if(b.dead)return;
+      if(ball.x>b.x-ball.r&&ball.x<b.x+b.w+ball.r&&ball.y>b.y-ball.r&&ball.y<b.y+b.h+ball.r){
+        b.dead=true;score+=10;upd();ball.vy*=-1;
+      }
+    });
+    if(bricks.every(b=>b.dead)){lev++;over=lev>3;if(!over)return init(true);}
+  }
+  draw();
+}
+function draw(){
+  phase+=0.05;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='rgba(3,2,10,.92)';ctx.fillRect(0,0,cv.width,cv.height);
+  bricks.forEach(b=>{
+    if(b.dead)return;
+    ctx.save();ctx.shadowColor=b.c;ctx.shadowBlur=14;ctx.fillStyle=b.c;
+    ctx.beginPath();ctx.roundRect(b.x+2,b.y+2,b.w-4,b.h-4,5);ctx.fill();
+    ctx.globalAlpha=.35;ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.roundRect(b.x+5,b.y+5,b.w-14,3,2);ctx.fill();ctx.restore();
+  });
+  const g=ctx.createLinearGradient(paddle.x,0,paddle.x+paddle.w,0);
+  g.addColorStop(0,'#00f0ff');g.addColorStop(1,'#8b5cf6');
+  ctx.save();ctx.shadowColor='#00f0ff';ctx.shadowBlur=20;ctx.fillStyle=g;
+  ctx.beginPath();ctx.roundRect(paddle.x,paddle.y,paddle.w,paddle.h,6);ctx.fill();ctx.restore();
+  const p=1+Math.sin(phase*2)*0.12;
+  ctx.save();ctx.shadowColor='#ffffff';ctx.shadowBlur=22;ctx.fillStyle='#fff';
+  ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r*p,0,Math.PI*2);ctx.fill();ctx.restore();
+  if(!running&&!over){
+    ctx.save();ctx.textAlign='center';ctx.shadowColor='#00f0ff';ctx.shadowBlur=18;
+    ctx.fillStyle='#eafcff';ctx.font='bold 15px ui-monospace,monospace';
+    ctx.fillText('点画面发射',cv.width/2,cv.height/2+80);ctx.restore();
+  }
+  if(over){
+    ctx.save();ctx.fillStyle='rgba(5,3,16,.74)';ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.textAlign='center';ctx.shadowColor='#ff2bd6';ctx.shadowBlur=26;ctx.fillStyle='#fff';
+    ctx.font='bold 22px ui-monospace,monospace';
+    ctx.fillText('GAME OVER',cv.width/2,cv.height/2-8);
+    ctx.shadowColor='#00f0ff';ctx.shadowBlur=14;ctx.font='14px ui-monospace,monospace';
+    ctx.fillText('SCORE '+score,cv.width/2,cv.height/2+22);ctx.restore();
+  }
+}
+function launch(){if(over){init(false);return;}if(!running&&!over)running=true;}
+function moveTo(clientX){
+  const r=cv.getBoundingClientRect();
+  const x=(clientX-r.left)*(cv.width/r.width);
+  paddle.x=Math.max(0,Math.min(cv.width-paddle.w,x-paddle.w/2));
+}
+cv.addEventListener('touchstart',e=>{e.preventDefault();moveTo(e.touches[0].clientX);launch();},{passive:false});
+cv.addEventListener('touchmove',e=>{e.preventDefault();moveTo(e.touches[0].clientX);},{passive:false});
+cv.addEventListener('click',e=>{moveTo(e.clientX);launch();});
+document.getElementById('left').addEventListener('touchstart',e=>{e.preventDefault();
+  paddle.x=Math.max(0,paddle.x-26);if(!running&&!over)running=true;},{passive:false});
+document.getElementById('right').addEventListener('touchstart',e=>{e.preventDefault();
+  paddle.x=Math.min(cv.width-paddle.w,paddle.x+26);if(!running&&!over)running=true;},{passive:false});
+document.getElementById('fire').addEventListener('click',launch);
+addEventListener('mousemove',e=>{moveTo(e.clientX);if(!running)launch();});
+addEventListener('keydown',e=>{
+  if(e.key.toLowerCase()==='r'){init(false);return;}
+  if(e.key===' '){launch();e.preventDefault();return;}
+  if(e.key==='ArrowLeft')paddle.x=Math.max(0,paddle.x-24);
+  if(e.key==='ArrowRight')paddle.x=Math.min(cv.width-paddle.w,paddle.x+24);
+});
+init(false);
+</script>
+</body>
+</html>

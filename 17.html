@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>记忆翻牌 07 · 霓虹版</title>
+<style>
+:root{--cyan:#00f0ff;--magenta:#ff2bd6;--purple:#8b5cf6;--lime:#39ff14;--bg:#05040d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;
+touch-action:manipulation;
+background:radial-gradient(circle at 20% 25%, rgba(139,92,246,.24), transparent 45%),
+radial-gradient(circle at 80% 75%, rgba(0,240,255,.20), transparent 45%),
+radial-gradient(circle at 50% 50%, #0c0a1e 0%, var(--bg) 70%);
+color:#eafcff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Microsoft YaHei",monospace;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+background-image:linear-gradient(rgba(0,240,255,.055) 1px,transparent 1px),
+linear-gradient(90deg,rgba(255,43,214,.055) 1px,transparent 1px);
+background-size:44px 44px;mask-image:radial-gradient(circle at 50% 50%,#000 30%,transparent 78%)}
+.wrap{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;max-width:420px}
+h1{font-size:20px;letter-spacing:.24em;margin:0 0 12px;color:#fff;
+text-shadow:0 0 6px var(--purple),0 0 18px var(--purple),0 0 42px rgba(139,92,246,.6)}
+.hud{display:flex;gap:16px;margin-bottom:14px;font-size:13px;letter-spacing:.1em;color:#cbb8ff}
+.hud b{color:#fff;text-shadow:0 0 10px var(--cyan)}
+.panel{padding:12px;border-radius:18px;background:rgba(10,8,26,.7);border:1px solid rgba(139,92,246,.4);
+box-shadow:0 0 0 1px rgba(0,240,255,.14) inset,0 0 24px rgba(139,92,246,.3),0 0 60px rgba(0,240,255,.18)}
+#box{display:grid;grid-template-columns:repeat(4,min(19vw,74px));gap:10px}
+.card{height:min(19vw,74px);border-radius:14px;background:rgba(255,255,255,.035);border:1px solid rgba(139,92,246,.5);
+display:flex;align-items:center;justify-content:center;font-size:min(8vw,32px);user-select:none;
+box-shadow:inset 0 0 14px rgba(139,92,246,.18);transition:.15s}
+.card.open{background:rgba(255,43,214,.12);border-color:var(--magenta);box-shadow:0 0 20px rgba(255,43,214,.6)}
+.card.done{background:rgba(57,255,20,.10);border-color:var(--lime);box-shadow:0 0 18px rgba(57,255,20,.45)}
+.card.back{font-size:0}
+#msg{min-height:24px;margin-top:14px;font-size:13px;letter-spacing:.1em;color:var(--cyan);
+text-shadow:0 0 10px rgba(0,240,255,.8);text-align:center}
+.btn{margin-top:12px;padding:12px 26px;border-radius:14px;border:1px solid var(--magenta);background:rgba(255,43,214,.12);
+color:#fff;font-family:inherit;font-size:13px;letter-spacing:.16em;text-shadow:0 0 10px var(--magenta);
+box-shadow:0 0 18px rgba(255,43,214,.4);user-select:none}
+.tip{margin-top:12px;font-size:11px;color:#7c8fb3}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>NEON MEMORY</h1>
+  <div class="hud">步数 <b id="mv">0</b>　配对 <b id="pair">0</b>/8　用时 <b id="time">0</b>s</div>
+  <div class="panel"><div id="box"></div></div>
+  <div id="msg"></div>
+  <div class="btn" id="reset">🔄 重新开始</div>
+  <div class="tip">点两张相同图案即配对</div>
+</div>
+<script>
+const EMOJI=['🍎','🍇','🍉','🍋','🍒','🥝','🍑','🍍'];
+const box=document.getElementById('box');
+let deck,first,lock,moves,pairs,t0,timer,started;
+function init(){
+  deck=EMOJI.concat(EMOJI).sort(()=>Math.random()-0.5);
+  first=null;lock=false;moves=0;pairs=0;started=false;
+  document.getElementById('mv').textContent=0;
+  document.getElementById('pair').textContent=0;
+  document.getElementById('time').textContent='0';
+  document.getElementById('msg').textContent='';
+  clearInterval(timer);
+  box.innerHTML='';
+  deck.forEach((e,i)=>{
+    const d=document.createElement('div');
+    d.className='card back';
+    d.addEventListener('click',()=>flip(i,d));
+    box.appendChild(d);
+  });
+}
+function flip(i,el){
+  if(lock||el.classList.contains('open')||el.classList.contains('done'))return;
+  if(!started){started=true;t0=Date.now();
+    timer=setInterval(()=>{document.getElementById('time').textContent=Math.floor((Date.now()-t0)/1000);},500);}
+  el.classList.remove('back');el.classList.add('open');el.textContent=deck[i];
+  if(first===null){first={i:i,el:el};return;}
+  moves++;document.getElementById('mv').textContent=moves;
+  if(deck[first.i]===deck[i]){
+    first.el.classList.remove('open');first.el.classList.add('done');
+    el.classList.remove('open');el.classList.add('done');
+    first=null;pairs++;
+    document.getElementById('pair').textContent=pairs;
+    if(pairs===8){
+      clearInterval(timer);
+      document.getElementById('msg').textContent='🏆 ALL MATCHED！'+moves+' 步 · '+
+        Math.floor((Date.now()-t0)/1000)+' 秒';
+    }
+  }else{
+    lock=true;
+    const a=first;first=null;
+    setTimeout(()=>{
+      a.el.classList.remove('open');a.el.classList.add('back');a.el.textContent='';
+      el.classList.remove('open');el.classList.add('back');el.textContent='';
+      lock=false;
+    },700);
+  }
+}
+document.getElementById('reset').addEventListener('click',init);
+addEventListener('keydown',e=>{if(e.key.toLowerCase()==='r')init();});
+init();
+</script>
+</body>
+</html>

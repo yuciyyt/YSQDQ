@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>社区资源导航 · NEON</title>
+<style>
+  *{ margin:0; padding:0; box-sizing:border-box; }
+
+  html{
+    background:#04050a;
+    scroll-behavior:smooth;
+  }
+
+  body{
+    min-height:100vh;
+    background:#04050a;
+    color:#e8f4ff;
+    font-family:"PingFang SC","Microsoft YaHei","Segoe UI",system-ui,sans-serif;
+    overflow-x:hidden;
+    position:relative;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  body::before{
+    content:'';
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(0,240,255,.075) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,240,255,.075) 1px, transparent 1px);
+    background-size:58px 58px;
+    pointer-events:none;
+    z-index:0;
+  }
+
+  body::after{
+    content:'';
+    position:fixed; inset:-10%;
+    background:
+      radial-gradient(circle at 12% 8%,  rgba(255,0,200,.20), transparent 42%),
+      radial-gradient(circle at 88% 12%, rgba(0,240,255,.20), transparent 42%),
+      radial-gradient(circle at 50% 105%, rgba(130,0,255,.24), transparent 55%);
+    pointer-events:none;
+    z-index:0;
+    animation:drift 16s ease-in-out infinite alternate;
+  }
+
+  @keyframes drift{
+    from{ transform:translate3d(0,0,0) scale(1); }
+    to  { transform:translate3d(0,-24px,0) scale(1.06); }
+  }
+
+  .wrap{
+    position:relative;
+    z-index:1;
+    padding:64px 0 40px;
+  }
+
+  header{
+    text-align:center;
+    padding:0 20px;
+    margin-bottom:34px;
+  }
+
+  .badge{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-size:12px;
+    letter-spacing:.28em;
+    color:#7fe9ff;
+    padding:6px 16px 6px 18px;
+    border:1px solid rgba(0,240,255,.35);
+    border-radius:999px;
+    background:rgba(0,240,255,.06);
+    box-shadow:0 0 18px -6px #00f0ff, inset 0 0 18px -12px #00f0ff;
+    margin-bottom:20px;
+    text-transform:uppercase;
+  }
+
+  .badge i{
+    width:7px; height:7px;
+    border-radius:50%;
+    background:#00ffa3;
+    box-shadow:0 0 10px #00ffa3, 0 0 20px #00ffa3;
+    animation:blink 1.8s ease-in-out infinite;
+  }
+
+  @keyframes blink{
+    0%,100%{ opacity:1; }
+    50%{ opacity:.25; }
+  }
+
+  .title{
+    font-size:clamp(30px, 6.2vw, 56px);
+    font-weight:800;
+    letter-spacing:.14em;
+    line-height:1.2;
+    background:linear-gradient(90deg,#00f0ff,#8a5cff,#ff00e0,#00f0ff);
+    background-size:300% 100%;
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    animation:flow 7s linear infinite;
+    filter:
+      drop-shadow(0 0 14px rgba(0,240,255,.65))
+      drop-shadow(0 0 38px rgba(255,0,224,.4));
+  }
+
+  @keyframes flow{
+    to{ background-position:300% 0; }
+  }
+
+  .subtitle{
+    margin-top:14px;
+    font-size:clamp(11px, 1.6vw, 13px);
+    letter-spacing:.42em;
+    color:rgba(150,215,255,.6);
+    text-transform:uppercase;
+  }
+
+  .search{
+    display:flex;
+    justify-content:center;
+    padding:0 20px;
+    margin:30px 0 38px;
+  }
+
+  .search input{
+    width:100%;
+    max-width:440px;
+    padding:13px 22px;
+    font-size:15px;
+    font-family:inherit;
+    color:#dff8ff;
+    background:rgba(0,240,255,.05);
+    border:1px solid rgba(0,240,255,.32);
+    border-radius:999px;
+    outline:none;
+    letter-spacing:.05em;
+    box-shadow:0 0 18px -8px #00f0ff, inset 0 0 22px -16px #00f0ff;
+    transition:border-color .3s, box-shadow .3s, background .3s;
+  }
+
+  .search input::placeholder{
+    color:rgba(150,210,255,.42);
+    letter-spacing:.1em;
+  }
+
+  .search input:focus{
+    border-color:#00f0ff;
+    background:rgba(0,240,255,.09);
+    box-shadow:0 0 28px -6px #00f0ff, inset 0 0 26px -12px #00f0ff;
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));
+    gap:18px;
+    max-width:1120px;
+    margin:0 auto;
+    padding:0 24px 20px;
+  }
+
+  /* 用 --c 做主色，--r 存 RGB 分量用于透明色 */
+  .card{
+    --c:#00f0ff;
+    --r:0,240,255;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    gap:9px;
+    padding:24px 20px 22px;
+    border-radius:16px;
+    text-decoration:none;
+    color:inherit;
+    cursor:pointer;
+    isolation:isolate;
+    overflow:hidden;
+    background:linear-gradient(160deg, rgba(255,255,255,.055), rgba(255,255,255,.012));
+    border:1px solid rgba(var(--r),.38);
+    box-shadow:
+      0 0 20px -10px rgba(var(--r),.85),
+      inset 0 0 28px -22px rgba(var(--r),.6);
+    transition:
+      transform .3s cubic-bezier(.2,.8,.2,1),
+      box-shadow .3s ease,
+      border-color .3s ease,
+      background .3s ease;
+    animation:pop .55s both cubic-bezier(.2,.8,.2,1);
+  }
+
+  @keyframes pop{
+    from{ opacity:0; transform:translateY(20px) scale(.95); }
+    to  { opacity:1; transform:none; }
+  }
+
+  .card::before{
+    content:'';
+    position:absolute; inset:0;
+    background:linear-gradient(115deg,
+      transparent 32%,
+      rgba(var(--r),.20) 50%,
+      transparent 68%);
+    transform:translateX(-130%);
+    transition:transform .75s ease;
+    pointer-events:none;
+    z-index:0;
+  }
+
+  .card:hover::before{ transform:translateX(130%); }
+
+  .card::after{
+    content:'';
+    position:absolute;
+    top:0; right:0;
+    width:40px; height:40px;
+    border-top:2px solid var(--c);
+    border-right:2px solid var(--c);
+    border-radius:0 16px 0 0;
+    opacity:.45;
+    transition:opacity .3s ease, width .3s ease, height .3s ease;
+    pointer-events:none;
+  }
+
+  .card:hover{
+    transform:translateY(-7px);
+    border-color:var(--c);
+    background:linear-gradient(160deg, rgba(var(--r),.13), rgba(255,255,255,.02));
+    box-shadow:
+      0 0 30px -6px rgba(var(--r),.9),
+      0 0 78px -26px rgba(var(--r),.7),
+      inset 0 0 38px -18px rgba(var(--r),.55);
+  }
+
+  .card:hover::after{
+    opacity:1;
+    width:52px; height:52px;
+  }
+
+  .card > *{ position:relative; z-index:1; }
+
+  .icon{
+    font-size:30px;
+    line-height:1;
+    filter:drop-shadow(0 0 10px var(--c));
+    transition:transform .3s cubic-bezier(.2,.8,.2,1), filter .3s ease;
+  }
+
+  .card:hover .icon{
+    transform:scale(1.16) translateY(-2px);
+    filter:drop-shadow(0 0 16px var(--c)) drop-shadow(0 0 30px var(--c));
+  }
+
+  .name{
+    font-size:17px;
+    font-weight:700;
+    letter-spacing:.04em;
+    color:#eefaff;
+    text-shadow:0 0 12px rgba(var(--r),.65);
+  }
+
+  .desc{
+    font-size:12px;
+    letter-spacing:.05em;
+    color:rgba(185,220,255,.52);
+  }
+
+  .hide{ display:none !important; }
+
+  .empty{
+    display:none;
+    text-align:center;
+    padding:60px 20px;
+    color:rgba(150,215,255,.5);
+    letter-spacing:.2em;
+    font-size:14px;
+  }
+
+  footer{
+    text-align:center;
+    padding:46px 20px 20px;
+    font-size:12px;
+    letter-spacing:.18em;
+    color:rgba(130,190,235,.35);
+  }
+
+  footer span{
+    color:#00f0ff;
+    text-shadow:0 0 12px rgba(0,240,255,.7);
+  }
+
+  @media (max-width: 620px){
+    .wrap{ padding-top:44px; }
+    .grid{
+      grid-template-columns:repeat(2, 1fr);
+      gap:12px;
+      padding:0 14px 20px;
+    }
+    .card{ padding:17px 13px 15px; border-radius:14px; gap:7px; }
+    .icon{ font-size:24px; }
+    .name{ font-size:14px; }
+    .desc{ font-size:10.5px; }
+    .card::after{ width:28px; height:28px; }
+    .subtitle{ letter-spacing:.25em; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div class="badge"><i></i>Online · 资源已同步</div>
+    <h1 class="title">社区资源导航</h1>
+    <p class="subtitle">Community Resource Navigator</p>
+  </header>
+
+  <div class="search">
+    <input id="search" type="text" placeholder="搜索专区 / 资源…" autocomplete="off">
+  </div>
+
+  <main class="grid" id="grid">
+
+    <!-- 把 href="#" 换成真实网址即可 -->
+    <a class="card" href="#" data-name="和平精英专区" style="--c:#ffa62b; --r:255,166,43">
+      <span class="icon">🎯</span>
+      <span class="name">和平精英专区</span>
+      <span class="desc">战术竞技 · 资源合集</span>
+    </a>
+
+    <a class="card" href="#" data-name="王者荣耀专区" style="--c:#ffd60a; --r:255,214,10">
+      <span class="icon">👑</span>
+      <span class="name">王者荣耀专区</span>
+      <span class="desc">峡谷攻略 · 英雄资料</span>
+    </a>
+
+    <a class="card" href="#" data-name="三角洲专区" style="--c:#a3ff12; --r:163,255,18">
+      <span class="icon">🛡️</span>
+      <span class="name">三角洲专区</span>
+      <span class="desc">战术撤离 · 装备数据</span>
+    </a>
+
+    <a class="card" href="#" data-name="使命召唤专区" style="--c:#ff2e63; --r:255,46,99">
+      <span class="icon">🔫</span>
+      <span class="name">使命召唤专区</span>
+      <span class="desc">枪械配装 · 战术手册</span>
+    </a>
+
+    <a class="card" href="#" data-name="PUBG专区" style="--c:#00e5ff; --r:0,229,255">
+      <span class="icon">🪂</span>
+      <span class="name">PUBG 专区</span>
+      <span class="desc">吃鸡秘籍 · 地图点位</span>
+    </a>
+
+    <a class="card" href="#" data-name="金铲铲专区" style="--c:#c77dff; --r:199,125,255">
+      <span class="icon">♟️</span>
+      <span class="name">金铲铲专区</span>
+      <span class="desc">阵容推荐 · 版本速报</span>
+    </a>
+
+    <a class="card" href="#" data-name="光遇专区" style="--c:#9be7ff; --r:155,231,255">
+      <span class="icon">🕯️</span>
+      <span class="name">光遇专区</span>
+      <span class="desc">蜡烛先祖 · 复刻日历</span>
+    </a>
+
+    <a class="card" href="#" data-name="英雄联盟专区" style="--c:#4d7cff; --r:77,124,255">
+      <span class="icon">⚔️</span>
+      <span class="name">英雄联盟专区</span>
+      <span class="desc">符文出装 · 赛事资讯</span>
+    </a>
+
+    <a class="card" href="#" data-name="原神专区" style="--c:#5ef2c4; --r:94,242,196">
+      <span class="icon">🌸</span>
+      <span class="name">原神专区</span>
+      <span class="desc">角色养成 · 深境攻略</span>
+    </a>
+
+    <a class="card" href="#" data-name="蛋仔派对专区" style="--c:#ff8fd0; --r:255,143,208">
+      <span class="icon">🥚</span>
+      <span class="name">蛋仔派对专区</span>
+      <span class="desc">地图工坊 · 皮肤图鉴</span>
+    </a>
+
+    <a class="card" href="#" data-name="我的世界专区" style="--c:#2bff88; --r:43,255,136">
+      <span class="icon">⛏️</span>
+      <span class="name">我的世界专区</span>
+      <span class="desc">模组整合 · 建筑教程</span>
+    </a>
+
+    <a class="card" href="#" data-name="低价货源站" style="--c:#8fff24; --r:143,255,36">
+      <span class="icon">📢</span>
+      <span class="name">低价货源站</span>
+      <span class="desc">超低价格 · 售后保障</span>
+    </a>
+
+    <a class="card" href="https://yliu.alygb.com/" data-name="风情软件库破解" style="--c:#2bff88; --r:43,255,136">
+      <span class="icon">📦</span>
+      <span class="name">风情软件库破解</span>
+      <span class="desc">破解整合 · 基本免费</span>
+    </a>
+
+    <a class="card" href="https://wwbvy.lanzn.com/jmsq4" data-name="小怪兽软件库" style="--c:#2bff88; --r:43,255,136">
+      <span class="icon">👾</span>
+      <span class="name">小怪兽软件库</span>
+      <span class="desc">怪兽出击 · 一个不留</span>
+    </a>
+
+  </main>
+
+  <p class="empty" id="empty">未找到匹配的资源</p>
+
+  <footer><span>© 2026 社区资源导航 · 仅供学习交流</span></footer>
+
+</div>
+
+<script>
+(function () {
+  var input = document.getElementById('search');
+  var empty = document.getElementById('empty');
+  var cards = Array.prototype.slice.call(document.querySelectorAll('#grid .card'));
+
+  input.addEventListener('input', function () {
+    var q = input.value.trim().toLowerCase();
+    var shown = 0;
+
+    cards.forEach(function (card) {
+      var text = (card.getAttribute('data-name') + ' ' + card.textContent).toLowerCase();
+      var hit = !q || text.indexOf(q) !== -1;
+      card.classList.toggle('hide', !hit);
+      if (hit) shown++;
+    });
+
+    empty.style.display = shown ? 'none' : 'block';
+  });
+})();
+</script>
+
+</body>
+</html>

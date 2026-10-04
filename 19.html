@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>跑酷躲避 16 · 霓虹版</title>
+<style>
+:root{--cyan:#00f0ff;--magenta:#ff2bd6;--purple:#8b5cf6;--lime:#39ff14;--yellow:#ffe600;--bg:#05040d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;
+touch-action:manipulation;
+background:radial-gradient(circle at 78% 22%, rgba(255,43,214,.20), transparent 45%),
+radial-gradient(circle at 22% 78%, rgba(0,240,255,.20), transparent 45%),
+radial-gradient(circle at 50% 50%, #0c0a1e 0%, var(--bg) 70%);
+color:#eafcff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Microsoft YaHei",monospace;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+background-image:linear-gradient(rgba(0,240,255,.055) 1px,transparent 1px),
+linear-gradient(90deg,rgba(255,43,214,.055) 1px,transparent 1px);
+background-size:44px 44px;mask-image:radial-gradient(circle at 50% 50%,#000 30%,transparent 78%)}
+.wrap{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;max-width:660px}
+h1{font-size:20px;letter-spacing:.22em;margin:0 0 10px;color:#fff;
+text-shadow:0 0 6px var(--cyan),0 0 18px var(--magenta),0 0 42px rgba(0,240,255,.5)}
+.hud{display:flex;gap:18px;margin-bottom:12px;font-size:13px;letter-spacing:.12em;color:#9ef6ff}
+.hud b{color:#fff;text-shadow:0 0 10px var(--magenta)}
+.panel{padding:10px;border-radius:18px;background:rgba(10,8,26,.72);border:1px solid rgba(0,240,255,.32);
+box-shadow:0 0 0 1px rgba(255,43,214,.16) inset,0 0 26px rgba(0,240,255,.28),0 0 60px rgba(255,43,214,.2);width:100%}
+canvas{display:block;border-radius:10px;background:#05030f;width:100%;height:auto;touch-action:none}
+#ctl{display:flex;gap:16px;margin-top:16px}
+.k{flex:1;min-width:104px;height:72px;border-radius:20px;background:rgba(255,255,255,.035);
+border:1px solid rgba(0,240,255,.4);color:#eafcff;font-size:15px;letter-spacing:.1em;display:flex;
+align-items:center;justify-content:center;user-select:none;box-shadow:inset 0 0 16px rgba(0,240,255,.12)}
+.k:active{background:rgba(0,240,255,.18);box-shadow:0 0 22px rgba(0,240,255,.6)}
+.k.slide{border-color:rgba(255,43,214,.55);color:var(--magenta);text-shadow:0 0 10px var(--magenta)}
+.k.re{border-color:rgba(255,230,0,.5);color:var(--yellow);font-size:13px}
+.tip{margin-top:14px;font-size:11px;color:#7c8fb3;text-align:center;line-height:1.7}
+.tip span{color:var(--cyan)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>NEON RUNNER</h1>
+  <div class="hud">距离 <b id="dist">0</b> m　最高 <b id="best">0</b> m　速度 <b id="spd">1.0</b>x</div>
+  <div class="panel"><canvas id="cv" width="640" height="260"></canvas></div>
+  <div id="ctl">
+    <div class="k" id="jump">⬆ 跳跃</div>
+    <div class="k slide" id="slide">⬇ 下滑</div>
+  </div>
+  <div class="k re" id="reset" style="margin-top:10px;padding:12px 24px;border-radius:14px;border:1px solid rgba(255,230,0,.5);color:#ffe600;font-size:13px;user-select:none">🔄 重开</div>
+  <div class="tip"><b>点画面也能跳跃</b>　连点两次就是二段跳</div>
+</div>
+<script>
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+const GROUND=210,G=0.85;
+let player,obstacles,coins,dist,best=+(localStorage.getItem('runnerNeonBest')||0),
+    speed,over,started,timer,spawnT,coinT,groundX,stars,phase=0;
+function init(){
+  player={x:110,y:GROUND-40,w:26,h:40,vy:0,onGround:true,jumps:0,slide:0};
+  obstacles=[];coins=[];dist=0;speed=1;over=false;started=false;spawnT=60;coinT=120;groundX=0;
+  stars=Array.from({length:26},()=>({x:Math.random()*cv.width,y:20+Math.random()*110,s:Math.random()*1.4+0.5}));
+  document.getElementById('best').textContent=best;
+  upd();
+  clearInterval(timer);timer=setInterval(loop,1000/60);
+}
+function upd(){
+  document.getElementById('dist').textContent=Math.floor(dist);
+  document.getElementById('spd').textContent=speed.toFixed(1);
+}
+function jump(){
+  if(over){init();return;}
+  started=true;
+  if(player.onGround){player.vy=-13;player.onGround=false;player.jumps=1;}
+  else if(player.jumps<2){player.vy=-11;player.jumps=2;}
+}
+function slide(){if(!over)player.slide=34;}
+function loop(){
+  phase+=0.05;
+  if(!over&&started){
+    dist+=speed*0.3;
+    speed=1+dist/1200;
+    player.vy+=G;player.y+=player.vy;
+    if(player.y>=GROUND-player.h){player.y=GROUND-player.h;player.vy=0;player.onGround=true;player.jumps=0;}
+    if(player.slide>0)player.slide--;
+    groundX-=speed*4;
+    stars.forEach(s=>{s.x-=s.s*(0.4+speed*0.15);if(s.x<-10){s.x=cv.width+10;s.y=20+Math.random()*110;}});
+    spawnT--;
+    if(spawnT<=0){
+      spawnT=Math.max(45,110-speed*14)+Math.random()*40;
+      const type=Math.random()<0.65?'block':'drone';
+      if(type==='block'){const h=30+Math.random()*42;
+        obstacles.push({type:'block',x:cv.width+30,w:22+Math.random()*18,h:h,y:GROUND-h});}
+      else obstacles.push({type:'drone',x:cv.width+30,w:34,h:24,y:GROUND-90-Math.random()*40});
+    }
+    coinT--;
+    if(coinT<=0){coinT=90+Math.random()*90;
+      coins.push({x:cv.width+20,y:GROUND-60-Math.random()*70,r:8,got:false});}
+    obstacles.forEach(o=>o.x-=speed*4.2);
+    coins.forEach(c=>c.x-=speed*4.2);
+    const pb={x:player.x,y:player.slide>0?player.y+20:player.y,
+              w:player.w,h:player.slide>0?20:player.h};
+    obstacles.forEach(o=>{
+      if(pb.x<o.x+o.w-4&&pb.x+pb.w>o.x+4&&pb.y<o.y+o.h&&pb.y+pb.h>o.y)die();
+    });
+    coins.forEach(c=>{
+      if(!c.got&&Math.hypot(c.x-(player.x+13),c.y-(player.y+20))<20){c.got=true;dist+=15;upd();}
+    });
+    obstacles=obstacles.filter(o=>o.x>-80);
+    coins=coins.filter(c=>c.x>-40&&!c.got);
+    upd();
+  }
+  draw();
+}
+function die(){
+  over=true;
+  if(Math.floor(dist)>best){best=Math.floor(dist);localStorage.setItem('runnerNeonBest',best);}
+  upd();
+}
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const sky=ctx.createLinearGradient(0,0,0,cv.height);
+  sky.addColorStop(0,'#0a0720');sky.addColorStop(.7,'#130b2e');sky.addColorStop(1,'#04091a');
+  ctx.fillStyle=sky;ctx.fillRect(0,0,cv.width,cv.height);
+  stars.forEach(s=>{
+    ctx.globalAlpha=0.3+0.4*Math.abs(Math.sin(phase*1.4+s.x));
+    ctx.fillStyle='#9ef6ff';ctx.fillRect(s.x,s.y,s.s,s.s);ctx.globalAlpha=1;
+  });
+  ctx.save();ctx.strokeStyle='#ff2bd6';ctx.shadowColor='#ff2bd6';ctx.shadowBlur=20;ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(0,GROUND);ctx.lineTo(cv.width,GROUND);ctx.stroke();
+  ctx.shadowColor='#00f0ff';ctx.strokeStyle='rgba(0,240,255,.45)';ctx.lineWidth=1;ctx.shadowBlur=10;
+  for(let i=-1;i<24;i++){
+    const x=(i*40+groundX%40);
+    ctx.beginPath();ctx.moveTo(x,GROUND);ctx.lineTo(x-30,cv.height);ctx.stroke();
+  }
+  for(let j=GROUND+18;j<cv.height;j+=18){ctx.beginPath();ctx.moveTo(0,j);ctx.lineTo(cv.width,j);ctx.stroke();}
+  ctx.restore();
+  coins.forEach(c=>{
+    ctx.save();ctx.shadowColor='#ffe600';ctx.shadowBlur=18;ctx.fillStyle='#ffe600';
+    ctx.beginPath();ctx.arc(c.x,c.y,c.r,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;ctx.fillStyle='#fff8c4';
+    ctx.beginPath();ctx.arc(c.x-2,c.y-2,c.r*0.4,0,Math.PI*2);ctx.fill();ctx.restore();
+  });
+  obstacles.forEach(o=>{
+    ctx.save();ctx.shadowColor='#ff2bd6';ctx.shadowBlur=18;ctx.fillStyle='rgba(255,43,214,.85)';
+    if(o.type==='block'){ctx.beginPath();ctx.roundRect(o.x,o.y,o.w,o.h,5);ctx.fill();}
+    else{
+      ctx.beginPath();ctx.ellipse(o.x+17,o.y+12,17,10,0,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.moveTo(o.x+30,o.y+10);ctx.lineTo(o.x+44,o.y+5);ctx.lineTo(o.x+30,o.y+17);ctx.fill();
+    }
+    ctx.restore();
+  });
+  const h=player.slide>0?20:player.h;
+  const py=player.y+(player.slide>0?20:0);
+  ctx.save();ctx.shadowColor='#00f0ff';ctx.shadowBlur=20;ctx.fillStyle='#00f0ff';
+  ctx.beginPath();ctx.roundRect(player.x,py,player.w,h,6);ctx.fill();
+  ctx.shadowBlur=10;ctx.fillStyle='#fff8c4';
+  ctx.beginPath();ctx.arc(player.x+13,py+10,7,0,Math.PI*2);ctx.fill();ctx.restore();
+  ctx.save();ctx.textAlign='left';ctx.font='bold 18px ui-monospace,monospace';
+  ctx.shadowColor='#00f0ff';ctx.shadowBlur=14;ctx.fillStyle='#fff';
+  ctx.fillText(Math.floor(dist)+' m',14,30);ctx.restore();
+  if(!started&&!over){
+    ctx.save();ctx.textAlign='center';ctx.font='bold 18px ui-monospace,monospace';
+    ctx.shadowColor='#ff2bd6';ctx.shadowBlur=20;ctx.fillStyle='#eafcff';
+    ctx.fillText('点画面开始跑',cv.width/2,110);ctx.restore();
+  }
+  if(over){
+    ctx.save();ctx.fillStyle='rgba(5,3,16,.78)';ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.textAlign='center';ctx.shadowColor='#ff2bd6';ctx.shadowBlur=26;ctx.fillStyle='#fff';
+    ctx.font='bold 24px ui-monospace,monospace';
+    ctx.fillText('CRASHED · '+Math.floor(dist)+' m',cv.width/2,cv.height/2-8);
+    ctx.shadowColor='#00f0ff';ctx.shadowBlur=14;ctx.font='14px ui-monospace,monospace';
+    ctx.fillText('BEST '+best+' m　点画面重开',cv.width/2,cv.height/2+22);ctx.restore();
+  }
+}
+cv.addEventListener('touchstart',e=>{e.preventDefault();jump();},{passive:false});
+cv.addEventListener('click',jump);
+['jump','slide','reset'].forEach(id=>{
+  const el=document.getElementById(id);
+  el.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    if(id==='jump')jump();else if(id==='slide')slide();else init();
+  },{passive:false});
+  el.addEventListener('click',()=>{if(id==='jump')jump();else if(id==='slide')slide();else init();});
+});
+let sy=0;
+cv.addEventListener('touchstart',e=>{sy=e.touches[0].clientY;},{passive:true});
+cv.addEventListener('touchmove',e=>{if(e.touches[0].clientY-sy>40)slide();},{passive:true});
+addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();
+  if(k==='r'){init();return;}
+  if(e.key===' '||k==='arrowup'||k==='w'){jump();e.preventDefault();}
+  if(k==='arrowdown'||k==='s'){slide();e.preventDefault();}
+});
+init();
+</script>
+</body>
+</html>
