@@ -160,26 +160,26 @@ footer kbd{display:inline-block;padding:2px 7px;margin:0 2px;border-radius:6px;f
    ★ 每一项 { } 之间必须有英文逗号，最后一项后面不要加逗号。
    ============================================================ */
 var GAMES = [
-  { id:1,  file:'1.html',  name:'霓虹逃生',   icon:'🎮', desc:'3D 霓虹生存射击，边跑边打', tag:'射击 · 生存', hue:190 },
-  { id:2,  file:'2.html',  name:'五子棋',     icon:'⚪', desc:'五子连珠者胜，经典双人对弈', tag:'棋类 · 双人', hue:205 },
-  { id:3,  file:'3.html',  name:'象棋',       icon:'🀄', desc:'中国象棋 · 楚河汉界',       tag:'棋类 · 双人', hue:0   },
-  { id:4,  file:'4.html',  name:'飞行棋',     icon:'🎲', desc:'掷骰前进，抢先把棋子送回家', tag:'竞速 · 多人', hue:280 },
-  { id:5,  file:'5.html',  name:'斗兽棋',     icon:'🐘', desc:'兽界斗争 · 弱肉强食',       tag:'棋类 · 双人', hue:130 },
-  { id:6,  file:'6.html',  name:'跳棋',       icon:'🎱', desc:'弹珠跳格，最快占领对家阵地', tag:'棋类 · 多人', hue:45  },
-  { id:7,  file:'7.html',  name:'军棋',       icon:'🎖️', desc:'司令军长暗棋对垒，工兵挖雷', tag:'棋类 · 双人', hue:95  },
-  { id:8,  file:'8.html',  name:'跳一跳',     icon:'🕹️', desc:'一按一跳，看谁跳得更远',     tag:'休闲 · 单人', hue:25  },
-  { id:9,  file:'9.html',  name:'2048',       icon:'🔢', desc:'滑动合并数字，冲击 2048',   tag:'益智 · 单人', hue:190 },
-  { id:10, file:'10.html', name:'猜数字',     icon:'❓', desc:'猜中随机数，次数越少越强',   tag:'益智 · 单人', hue:205 },
-  { id:11, file:'11.html', name:'打地鼠',     icon:'🔨', desc:'眼疾手快，敲准每一只地鼠',   tag:'休闲 · 单人', hue:0   },
-  { id:12, file:'12.html', name:'打砖块',     icon:'🧱', desc:'反弹小球，清空全部砖块',     tag:'街机 · 单人', hue:280 },
-  { id:13, file:'13.html', name:'打字游戏',   icon:'⌨️', desc:'看词打字，比拼手速与准确率', tag:'休闲 · 单人', hue:130 },
-  { id:14, file:'14.html', name:'弹跳球',     icon:'🏀', desc:'控制弹跳，越弹越高分',       tag:'街机 · 单人', hue:45  },
-  { id:15, file:'15.html', name:'俄罗斯方块', icon:'🧩', desc:'旋转堆叠方块，消行得分',     tag:'街机 · 单人', hue:95  },
-  { id:16, file:'16.html', name:'反应力测试', icon:'⚡', desc:'测一测你的极限反应速度',     tag:'休闲 · 单人', hue:25  },
-  { id:17, file:'17.html', name:'记忆翻牌',   icon:'🃏', desc:'记住牌面位置，成对翻开',     tag:'益智 · 单人', hue:190 },
-  { id:18, file:'18.html', name:'井字棋',     icon:'⭕', desc:'三子连线，经典井字对弈',     tag:'棋类 · 双人', hue:205 },
-  { id:19, file:'19.html', name:'跑酷躲避',   icon:'🏃', desc:'一路狂奔，躲开所有障碍',     tag:'街机 · 单人', hue:0   },
-  { id:20, file:'20.html', name:'乒乓球',     icon:'🏓', desc:'来回对打，别让球落地',       tag:'街机 · 双人', hue:280 }
+  { id:1,  href:'./1.html',  name:'霓虹逃生',   icon:'🎮', desc:'3D 霓虹生存射击，边跑边打', tag:'射击 · 生存', hue:190 },
+  { id:2,  href:'./2.html',  name:'五子棋',     icon:'⚪', desc:'五子连珠者胜，经典双人对弈', tag:'棋类 · 双人', hue:205 },
+  { id:3,  href:'./3.html',  name:'象棋',       icon:'🀄', desc:'中国象棋 · 楚河汉界',       tag:'棋类 · 双人', hue:0   },
+  { id:4,  href:'./4.html',  name:'飞行棋',     icon:'🎲', desc:'掷骰前进，抢先把棋子送回家', tag:'竞速 · 多人', hue:280 },
+  { id:5,  href:'./5.html',  name:'斗兽棋',     icon:'🐘', desc:'兽界斗争 · 弱肉强食',       tag:'棋类 · 双人', hue:130 },
+  { id:6,  href:'./6.html',  name:'跳棋',       icon:'🎱', desc:'弹珠跳格，最快占领对家阵地', tag:'棋类 · 多人', hue:45  },
+  { id:7,  href:'./7.html',  name:'军棋',       icon:'🎖️', desc:'司令军长暗棋对垒，工兵挖雷', tag:'棋类 · 双人', hue:95  },
+  { id:8,  href:'./8.html',  name:'跳一跳',     icon:'🕹️', desc:'一按一跳，看谁跳得更远',     tag:'休闲 · 单人', hue:25  },
+  { id:9,  href:'./9.html',  name:'2048',       icon:'🔢', desc:'滑动合并数字，冲击 2048',   tag:'益智 · 单人', hue:190 },
+  { id:10, href:'./10.html', name:'猜数字',     icon:'❓', desc:'猜中随机数，次数越少越强',   tag:'益智 · 单人', hue:205 },
+  { id:11, href:'./11.html', name:'打地鼠',     icon:'🔨', desc:'眼疾手快，敲准每一只地鼠',   tag:'休闲 · 单人', hue:0   },
+  { id:12, href:'./12.html', name:'打砖块',     icon:'🧱', desc:'反弹小球，清空全部砖块',     tag:'街机 · 单人', hue:280 },
+  { id:13, href:'./13.html', name:'打字游戏',   icon:'⌨️', desc:'看词打字，比拼手速与准确率', tag:'休闲 · 单人', hue:130 },
+  { id:14, href:'./14.html', name:'弹跳球',     icon:'🏀', desc:'控制弹跳，越弹越高分',       tag:'街机 · 单人', hue:45  },
+  { id:15, href:'./15.html', name:'俄罗斯方块', icon:'🧩', desc:'旋转堆叠方块，消行得分',     tag:'街机 · 单人', hue:95  },
+  { id:16, href:'./16.html', name:'反应力测试', icon:'⚡', desc:'测一测你的极限反应速度',     tag:'休闲 · 单人', hue:25  },
+  { id:17, href:'./17.html', name:'记忆翻牌',   icon:'🃏', desc:'记住牌面位置，成对翻开',     tag:'益智 · 单人', hue:190 },
+  { id:18, href:'./18.html', name:'井字棋',     icon:'⭕', desc:'三子连线，经典井字对弈',     tag:'棋类 · 双人', hue:205 },
+  { id:19, href:'./19.html', name:'跑酷躲避',   icon:'🏃', desc:'一路狂奔，躲开所有障碍',     tag:'街机 · 单人', hue:0   },
+  { id:20, href:'./20.html', name:'乒乓球',     icon:'🏓', desc:'来回对打，别让球落地',       tag:'街机 · 双人', hue:280 }
 ];
 
 var STORE = 'hub_stats_v1';
@@ -249,7 +249,7 @@ function render(){
   list.forEach(function(g){
     var a = document.createElement('a');
     a.className = 'card' + (stats.last === g.id ? ' last' : '');
-    a.href = g.file;
+    a.href = g.href;
     a.style.setProperty('--h', g.hue);
 
     var n = playsOf(g.id);
@@ -279,7 +279,7 @@ function render(){
   if (lg){
     $recent.classList.add('on');
     $rname.textContent = lg.icon + ' ' + lg.name + '　已启动 ' + playsOf(lg.id) + ' 次';
-    $rgo.href = lg.file;
+    $rgo.href = lg.href;
     $rgo.onclick = function(){
       stats.plays[lg.id] = playsOf(lg.id) + 1;
       saveStats();
@@ -305,7 +305,7 @@ document.addEventListener('keydown', function(e){
       stats.plays[g.id] = playsOf(g.id) + 1;
       stats.last = g.id;
       saveStats();
-      location.href = g.file;
+      location.href = g.href;
     }
   }
 });
