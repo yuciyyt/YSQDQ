@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#05070f">
+<title>正在同步…</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{
+  background:
+    radial-gradient(circle at 18% 22%,rgba(79,216,255,.20),transparent 46%),
+    radial-gradient(circle at 82% 78%,rgba(255,79,163,.18),transparent 46%),
+    radial-gradient(circle at 50% 42%,#101b33,#05070f 72%);
+  color:#8fd8ff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  font-family:"Segoe UI",system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-tap-highlight-color:transparent
+}
+.ring{width:56px;height:56px;border-radius:50%;
+  border:3px solid rgba(79,216,255,.16);border-top-color:#4fd8ff;border-right-color:#a06bff;
+  animation:sp .9s linear infinite;box-shadow:0 0 30px rgba(79,216,255,.35)}
+@keyframes sp{to{transform:rotate(360deg)}}
+.t{font-size:13.5px;font-weight:900;letter-spacing:.3em;
+  background:linear-gradient(92deg,#4fd8ff,#a06bff 50%,#ff4fa3);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.bar{width:172px;height:3px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+.bar i{display:block;height:100%;width:42%;border-radius:3px;
+  background:linear-gradient(90deg,#4fd8ff,#a06bff,#ff4fa3);animation:mv 1.15s ease-in-out infinite}
+@keyframes mv{0%{transform:translateX(-110%)}100%{transform:translateX(280%)}}
+.s{font-size:11px;color:#5f7f96;letter-spacing:.12em}
+.err{margin-top:6px;font-size:11.5px;color:#ff9ec7;text-align:center;line-height:1.8;display:none;padding:0 22px}
+.err.on{display:block}
+</style>
+</head>
+<body>
+<div class="ring"></div>
+<div class="t">NEON GAME HUB</div>
+<div class="bar"><i></i></div>
+<div class="s" id="st">正在同步最新版本…</div>
+<div class="err" id="err"></div>
+
+<script>
+/* ============================================================
+   中转/同步页（不要删）
+   作用：每次打开都用「带时间戳」的地址去请求大厅，
+        强制 WebView 与 CDN 都重新拉取 → 云端一更新就同步
+   ============================================================ */
+(function () {
+  var HUB = 'index.html';                 // 真正的大厅文件
+  var url = HUB + '?t=' + Date.now();     // 时间戳 = 缓存破坏器
+
+  var st  = document.getElementById('st');
+  var err = document.getElementById('err');
+
+  /* 先探一下网络：没网就给个提示，有网直接跳转 */
+  var settled = false;
+
+  function go() {
+    if (settled) return;
+    settled = true;
+    location.replace(url);
+  }
+
+  function fail() {
+    if (settled) return;
+    settled = true;
+    st.textContent = '网络似乎不太顺畅…';
+    err.innerHTML = '连接不上服务器<br>① 检查网络后重新打开<br>② 或点这里手动重试';
+    err.classList.add('on');
+    err.style.pointerEvents = 'auto';
+    err.onclick = function () {
+      settled = false;
+      err.classList.remove('on');
+      st.textContent = '正在同步最新版本…';
+      boot();
+    };
+  }
+
+  function boot() {
+    var done = false;
+    var t = setTimeout(function () { if (!done) go(); }, 1500);   // 最多等 1.5 秒就走
+
+    // 轻量探活（同样带时间戳，不走缓存）
+    var xhr = new XMLHttpRequest();
+    try {
+      xhr.open('HEAD', HUB + '?probe=' + Date.now(), true);
+      xhr.timeout = 4000;
+      xhr.onload = function () { done = true; clearTimeout(t); go(); };
+      xhr.onerror = function () { done = true; clearTimeout(t); fail(); };
+      xhr.ontimeout = function () { done = true; clearTimeout(t); fail(); };
+      xhr.send();
+    } catch (e) {
+      clearTimeout(t); go();     // 探活不支持就直接跳
+    }
+
+    // 保险：8 秒后无论怎样都跳一次
+    setTimeout(go, 8000);
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>

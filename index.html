@@ -448,6 +448,19 @@ render();
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape') close(); });
   if (AUTO_OPEN) setTimeout(open, 260);
 })();
+
+/* ===== 游戏链接防缓存：点开游戏时自动附加时间戳，
+        保证云端改了某个游戏文件后，也能立刻同步到最新版 ===== */
+(function(){
+  document.addEventListener('click', function(e){
+    var a = e.target && e.target.closest ? e.target.closest('a[href$=".html"]') : null;
+    if (!a) return;
+    var h = a.getAttribute('href') || '';
+    if (!/\.html$/.test(h) || /[?&]t=/.test(h)) return;
+    e.preventDefault();
+    location.href = h + (h.indexOf('?') < 0 ? '?' : '&') + 't=' + Date.now();
+  }, true);
+})();
 </script>
 </body>
 </html>
