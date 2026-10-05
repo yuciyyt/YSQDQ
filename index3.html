@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>更新内容 · UPDATE LOG</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{min-height:100%}
+body{
+  background:transparent;color:#e8f6ff;
+  font-family:"Segoe UI",system-ui,-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  padding:16px 16px 22px;-webkit-tap-highlight-color:transparent;
+}
+/* 单独打开（非嵌入）时给一个霓虹底，嵌在弹层里时保持透明 */
+html.standalone body{
+  background:
+    radial-gradient(circle at 12% 12%,rgba(79,216,255,.20),transparent 46%),
+    radial-gradient(circle at 88% 82%,rgba(255,79,163,.20),transparent 46%),
+    linear-gradient(170deg,#0b1526,#05070f 70%);
+  min-height:100vh;
+}
+/* ---- 顶部标题 ---- */
+.top{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.top h1{font-size:19px;font-weight:900;letter-spacing:.16em;
+  background:linear-gradient(92deg,#4fd8ff,#a06bff 48%,#ff4fa3);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 16px rgba(79,216,255,.35))}
+.top .ver{font:800 11px/1 ui-monospace,Consolas,monospace;letter-spacing:.1em;
+  padding:5px 10px;border-radius:20px;color:#9ff0ff;
+  background:rgba(79,216,255,.12);border:1px solid rgba(79,216,255,.4);
+  box-shadow:0 0 16px rgba(79,216,255,.25)}
+.top .tip{margin-left:auto;font-size:11px;color:#6f93ab;letter-spacing:.08em}
+
+/* ---- 版本卡片 ---- */
+.item{position:relative;margin-bottom:13px;padding:14px 15px 13px 18px;border-radius:15px;
+  background:linear-gradient(160deg,rgba(16,29,50,.82),rgba(8,13,24,.86));
+  border:1px solid rgba(79,216,255,.2);
+  box-shadow:0 8px 22px rgba(0,0,0,.42)}
+.item:before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:3px;
+  background:linear-gradient(180deg,var(--c1,#4fd8ff),var(--c2,#a06bff));
+  box-shadow:0 0 14px var(--c1,#4fd8ff)}
+.item.newest{border-color:rgba(255,209,102,.45);
+  box-shadow:0 0 26px rgba(255,209,102,.14),0 10px 26px rgba(0,0,0,.5)}
+.item.newest:before{background:linear-gradient(180deg,#ffe27a,#ff9a3c);box-shadow:0 0 16px #ffd166}
+.hd{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.hd .v{font:900 15px/1 ui-monospace,Consolas,monospace;letter-spacing:.04em;color:#eafcff;
+  text-shadow:0 0 12px rgba(79,216,255,.5)}
+.hd .new{font-size:10px;font-weight:900;letter-spacing:.12em;padding:3px 8px;border-radius:20px;
+  color:#251b00;background:linear-gradient(92deg,#ffe27a,#ffc24f);box-shadow:0 0 14px rgba(255,209,102,.55)}
+.hd .date{margin-left:auto;font-size:11px;color:#6f93ab;letter-spacing:.06em;
+  font-family:ui-monospace,Consolas,monospace}
+.hd .ttl{margin-top:7px;width:100%;font-size:13.5px;font-weight:800;color:#cfeaff;letter-spacing:.04em}
+ul{margin-top:9px;list-style:none}
+li{position:relative;padding:4px 0 4px 17px;font-size:12.5px;line-height:1.72;color:#a8c6d8}
+li:before{content:"";position:absolute;left:4px;top:12px;width:5px;height:5px;border-radius:50%;
+  background:var(--c1,#4fd8ff);box-shadow:0 0 9px var(--c1,#4fd8ff)}
+li b{color:#eafcff;font-weight:800}
+li .tag{display:inline-block;margin-right:6px;padding:1px 7px;border-radius:6px;font-size:10px;
+  font-weight:900;letter-spacing:.06em;vertical-align:1px}
+li .tag.add{color:#8affc9;background:rgba(46,255,150,.13);border:1px solid rgba(46,255,150,.35)}
+li .tag.fix{color:#ffc2e4;background:rgba(255,79,163,.13);border:1px solid rgba(255,79,163,.35)}
+li .tag.opt{color:#9ff0ff;background:rgba(79,216,255,.13);border:1px solid rgba(79,216,255,.35)}
+li .tag.imp{color:#ffe27a;background:rgba(255,209,102,.13);border:1px solid rgba(255,209,102,.38)}
+
+/* ---- 底部提示 ---- */
+.foot{margin-top:16px;padding:11px 13px;border-radius:13px;text-align:center;font-size:11.5px;
+  line-height:1.8;color:#7fa3ba;background:rgba(10,18,32,.6);border:1px dashed rgba(79,216,255,.24)}
+.foot b{color:#cfeaff}
+@media(max-width:430px){
+  body{padding:13px 12px 18px}
+  .top h1{font-size:17px}
+  .top .tip{display:none}
+  li{font-size:12px}
+}
+</style>
+</head>
+<body>
+<script>if (window.self === window.top) document.documentElement.classList.add('standalone');</script>
+
+<div class="top">
+  <h1>更 新 内 容</h1>
+  <span class="ver">v2.0.0</span>
+  <span class="tip">最近更新 · UPDATE LOG</span>
+</div>
+
+<div class="item newest" style="--c1:#ffd166;--c2:#ff8a3c">
+  <div class="hd">
+    <span class="v">v2.0.0</span>
+    <span class="new">NEW</span>
+    <span class="date">2026-10-05</span>
+    <span class="ttl">🎉 大厅焕新 · 全面触屏化</span>
+  </div>
+  <ul>
+    <li><span class="tag imp">重要</span>首页改为<b>自动叠加弹层</b>展示更新内容，不再覆盖原页面</li>
+    <li><span class="tag add">新增</span>搜索框上方新增 <b>公告栏</b>，实时滚动最新消息</li>
+    <li><span class="tag add">新增</span>大厅支持<b>搜索游戏名 / 类型</b>，输入即过滤</li>
+    <li><span class="tag add">新增</span><b>最近游玩</b>记录，一键「继续」回到上次的游戏</li>
+    <li><span class="tag opt">优化</span>全部 20 款游戏完成<b>手机触屏适配</b>（滑动 / 方向键 / 拖拽 / 点按）</li>
+    <li><span class="tag opt">优化</span>卡片霓虹光效、启动动画与配色统一升级</li>
+    <li><span class="tag fix">修复</span>修复部分机型上游戏画面溢出屏幕的问题</li>
+  </ul>
+</div>
+
+<div class="item" style="--c1:#4fd8ff;--c2:#a06bff">
+  <div class="hd">
+    <span class="v">v1.5.0</span>
+    <span class="date">2026-10-03</span>
+    <span class="ttl">📱 手机触屏改造</span>
+  </div>
+  <ul>
+    <li><span class="tag add">新增</span>贪吃蛇、俄罗斯方块、打砖块、乒乓球等<b>屏幕方向键 / 拖拽操作</b></li>
+    <li><span class="tag add">新增</span>扫雷加入<b>插旗模式</b>，长按即可标记雷区</li>
+    <li><span class="tag add">新增</span>跑酷躲避支持<b>点按跳跃 + 二段跳</b></li>
+    <li><span class="tag opt">优化</span>所有游戏启用<b>自适应缩放</b>，字号与画布随屏幕调整</li>
+    <li><span class="tag fix">修复</span>禁用双击缩放，避免误触放大</li>
+  </ul>
+</div>
+
+<div class="item" style="--c1:#ff4fa3;--c2:#a06bff">
+  <div class="hd">
+    <span class="v">v1.2.0</span>
+    <span class="date">2026-09-30</span>
+    <span class="ttl">✨ 视觉与体验</span>
+  </div>
+  <ul>
+    <li><span class="tag add">新增</span>全站<b>霓虹主题</b>：渐变标题、光斑背景、发光卡片</li>
+    <li><span class="tag add">新增</span>游戏启用<b>动画过渡</b>与按钮按压缩放反馈</li>
+    <li><span class="tag opt">优化</span>加载速度提升，首屏渲染更快</li>
+  </ul>
+</div>
+
+<div class="item" style="--c1:#39ff14;--c2:#00f0ff">
+  <div class="hd">
+    <span class="v">v1.0.0</span>
+    <span class="date">2026-09-28</span>
+    <span class="ttl">🚀 首个版本发布</span>
+  </div>
+  <ul>
+    <li><span class="tag add">新增</span>首批 <b>20 款小游戏</b>上线：休闲、益智、动作、策略全覆盖</li>
+    <li><span class="tag add">新增</span>大厅首页、游戏卡片列表与快速启动</li>
+    <li><span class="tag imp">说明</span>所有游戏<b>本地运行</b>，无需联网、免安装</li>
+  </ul>
+</div>
+
+<div class="foot">
+  💡 提示：内容写在本文件的 <b>index3.html</b> 里，改完上传 GitHub 即可全端同步生效
+</div>
+
+</body>
+</html>

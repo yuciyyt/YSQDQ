@@ -1,1 +1,453 @@
-http://source.webcat.top
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#05070f">
+<title>游戏大厅 · GAME HUB</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{min-height:100%}
+body{
+  background:#05070f;color:#e8f6ff;overflow-x:hidden;
+  font-family:"Segoe UI",system-ui,-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  padding:calc(18px + env(safe-area-inset-top)) 16px calc(30px + env(safe-area-inset-bottom));
+  -webkit-tap-highlight-color:transparent;
+}
+/* ---- 背景光斑 ---- */
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.bg i{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5}
+.bg i:nth-child(1){width:46vmax;height:46vmax;left:-14vmax;top:-16vmax;background:#1b6fff}
+.bg i:nth-child(2){width:40vmax;height:40vmax;right:-12vmax;top:6vmax;background:#c31fd0}
+.bg i:nth-child(3){width:38vmax;height:38vmax;left:22vmax;bottom:-18vmax;background:#00c9a7}
+.bg:after{content:"";position:absolute;inset:0;opacity:.06;
+  background-image:linear-gradient(rgba(150,220,255,.6) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(150,220,255,.6) 1px,transparent 1px);
+  background-size:46px 46px}
+.wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto}
+
+header{text-align:center;padding:12px 0 4px}
+h1{font-size:clamp(26px,6.4vw,44px);font-weight:900;letter-spacing:.16em;
+  background:linear-gradient(92deg,#4fd8ff,#a06bff 45%,#ff4fa3 78%,#ffc24f);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 22px rgba(79,216,255,.4))}
+header p{margin-top:8px;font-size:12.5px;letter-spacing:.34em;color:#79a6c4;text-transform:uppercase}
+
+/* ---- 顶部工具条 ---- */
+.bar{display:flex;gap:10px;align-items:center;margin:20px 0 14px}
+.search{flex:1;position:relative}
+.search input{
+  width:100%;padding:13px 14px 13px 42px;border-radius:14px;font-size:15px;font-family:inherit;
+  background:rgba(12,22,40,.72);border:1px solid rgba(79,216,255,.28);color:#e8f6ff;outline:none;
+  box-shadow:0 0 24px rgba(0,0,0,.45) inset,0 6px 18px rgba(0,0,0,.4);transition:.18s}
+.search input::placeholder{color:#5f8299}
+.search input:focus{border-color:rgba(79,216,255,.75);box-shadow:0 0 26px rgba(79,216,255,.25),0 0 22px rgba(0,0,0,.45) inset}
+.search:before{content:"🔍";position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:15px;opacity:.8}
+.count{font-size:12.5px;color:#8fb6cd;letter-spacing:.06em;white-space:nowrap}
+
+/* ---- 最近游玩 ---- */
+.recent{display:none;margin-bottom:18px;padding:13px 15px;border-radius:16px;
+  background:linear-gradient(120deg,rgba(79,216,255,.14),rgba(160,107,255,.08));
+  border:1px solid rgba(79,216,255,.3);box-shadow:0 0 26px rgba(79,216,255,.13)}
+.recent.on{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.recent .rk{font-size:11.5px;letter-spacing:.22em;color:#8fd6ff}
+.recent .rn{margin-left:auto;display:inline-flex;align-items:center;gap:9px;text-decoration:none;
+  padding:9px 18px;border-radius:11px;font-weight:800;font-size:14px;color:#04121c;
+  background:linear-gradient(180deg,#79e6ff,#3ec8ff);box-shadow:0 0 22px rgba(79,216,255,.55)}
+.recent .rn:active{transform:scale(.97)}
+
+/* ---- 卡片网格 ---- */
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(172px,1fr))}
+.card{
+  position:relative;display:block;text-decoration:none;color:inherit;overflow:hidden;
+  padding:18px 16px 15px;border-radius:18px;min-height:148px;
+  background:linear-gradient(165deg,rgba(18,32,54,.92),rgba(8,14,26,.94));
+  border:1px solid hsl(var(--h,200) 90% 62% / .34);
+  box-shadow:0 10px 26px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.02) inset;
+  transition:transform .16s,box-shadow .16s,border-color .16s;
+}
+.card:before{content:"";position:absolute;inset:-1px;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(120% 80% at 15% 0%,hsl(var(--h,200) 100% 65% / .22),transparent 62%)}
+.card:hover{transform:translateY(-5px);border-color:hsl(var(--h,200) 100% 68% / .85);
+  box-shadow:0 0 34px hsl(var(--h,200) 100% 60% / .38),0 16px 34px rgba(0,0,0,.55)}
+.card:active{transform:translateY(-1px) scale(.985)}
+.card .num{position:absolute;right:12px;top:11px;font:800 12px/1 ui-monospace,Consolas,monospace;
+  padding:5px 9px;border-radius:8px;color:hsl(var(--h,200) 100% 78%);
+  background:hsl(var(--h,200) 100% 60% / .14);border:1px solid hsl(var(--h,200) 100% 62% / .38)}
+.card .ico{font-size:34px;line-height:1;display:block;filter:drop-shadow(0 0 12px hsl(var(--h,200) 100% 60% / .6))}
+.card .nm{display:block;margin-top:12px;font-size:17px;font-weight:900;letter-spacing:.05em}
+.card .ds{display:block;margin-top:5px;font-size:12px;line-height:1.6;color:#9dbdd2;min-height:32px}
+.card .tg{display:inline-block;margin-top:9px;font-size:10.5px;letter-spacing:.12em;
+  padding:4px 9px;border-radius:20px;color:hsl(var(--h,200) 100% 80%);
+  background:hsl(var(--h,200) 100% 60% / .12);border:1px solid hsl(var(--h,200) 100% 62% / .3)}
+.card .meta{display:block;margin-top:10px;font-size:10.5px;color:#6d8ba1;letter-spacing:.05em;min-height:14px}
+.card .go{position:absolute;left:16px;bottom:13px;font-size:11.5px;font-weight:800;letter-spacing:.16em;
+  color:hsl(var(--h,200) 100% 72%);opacity:0;transform:translateX(-6px);transition:.18s}
+.card:hover .go{opacity:1;transform:translateX(0)}
+.card.last{border-color:#ffd166}
+.card.last .num{color:#ffd166;background:rgba(255,209,102,.14);border-color:rgba(255,209,102,.45)}
+.empty{grid-column:1/-1;text-align:center;padding:40px 10px;color:#6d8ba1;font-size:14px}
+
+/* ---- 页脚 ---- */
+footer{margin-top:26px;padding:16px;border-radius:16px;text-align:center;
+  background:rgba(10,18,32,.6);border:1px solid rgba(79,216,255,.16);font-size:12.5px;
+  line-height:2;color:#8fb6cd}
+footer b{color:#cfeaff}
+footer kbd{display:inline-block;padding:2px 7px;margin:0 2px;border-radius:6px;font:700 11px/1.5 ui-monospace,monospace;
+  background:rgba(79,216,255,.14);border:1px solid rgba(79,216,255,.35);color:#cdf3ff}
+.acts{margin-top:12px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.acts button{position:relative;overflow:hidden;font-family:inherit;cursor:pointer;padding:9px 16px;border-radius:10px;
+  font-size:12.5px;font-weight:700;color:#cfeaff;background:rgba(79,216,255,.1);
+  border:1px solid rgba(79,216,255,.3);transition:.16s;
+  touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.acts button:hover{background:rgba(79,216,255,.22);border-color:rgba(79,216,255,.6)}
+/* 长按中的状态 + 3 秒进度条 */
+.acts button.holding{background:rgba(255,79,163,.18);border-color:rgba(255,79,163,.65);color:#ffd9ec}
+.acts button.holding:after{content:"";position:absolute;left:0;bottom:0;height:3px;width:100%;
+  background:linear-gradient(90deg,#4fd8ff,#a06bff,#ff4fa3);
+  transform-origin:left center;animation:holdbar 3s linear forwards}
+@keyframes holdbar{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+#toast{position:fixed;left:50%;top:20px;transform:translate(-50%,-12px);z-index:9;padding:11px 20px;border-radius:12px;
+  background:rgba(8,16,28,.94);border:1px solid rgba(79,216,255,.4);color:#e8f6ff;font-size:13.5px;font-weight:700;
+  opacity:0;pointer-events:none;transition:.25s;box-shadow:0 10px 30px rgba(0,0,0,.6);max-width:88vw;text-align:center}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+@media(max-width:430px){
+  .grid{grid-template-columns:repeat(2,1fr);gap:11px}
+  .card{padding:14px 12px 12px;min-height:138px;border-radius:15px}
+  .card .ico{font-size:28px}
+  .card .nm{font-size:15px;margin-top:9px}
+  .card .ds{font-size:11px;min-height:28px}
+  .card .go{display:none}
+}
+
+/* ================= 公告栏（位于搜索框上方） ================= */
+.notice{margin:16px 0 14px;display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:13px;
+  position:relative;overflow:hidden;
+  background:linear-gradient(120deg,rgba(255,79,163,.16),rgba(160,107,255,.09));
+  border:1px solid rgba(255,79,163,.34);box-shadow:0 0 24px rgba(255,79,163,.13)}
+.notice:after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.07),transparent);
+  transform:translateX(-100%);animation:nscan 4.6s linear infinite}
+@keyframes nscan{to{transform:translateX(100%)}}
+.notice .nk{flex:none;font-size:10.5px;font-weight:900;letter-spacing:.14em;color:#ffc2e4;
+  padding:4px 9px;border-radius:8px;background:rgba(255,79,163,.16);
+  border:1px solid rgba(255,79,163,.4);text-shadow:0 0 10px rgba(255,79,163,.7)}
+.notice .nframe{flex:1;min-width:0;height:22px;border:0;background:transparent;display:block;overflow:hidden}
+
+/* ================= 更新内容弹层（叠加显示，不覆盖原页） ================= */
+#updOv{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;
+  padding:calc(14px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom));
+  background:radial-gradient(circle at 50% 28%,rgba(14,26,50,.78),rgba(3,5,12,.93));
+  backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+#updOv.on{display:flex}
+.updcard{position:relative;width:min(560px,94vw);max-height:84vh;display:flex;flex-direction:column;
+  border-radius:20px;overflow:hidden;
+  background:linear-gradient(165deg,rgba(20,34,58,.97),rgba(8,13,25,.98));
+  border:1px solid rgba(79,216,255,.4);
+  box-shadow:0 0 0 1px rgba(255,79,163,.18) inset,0 0 44px rgba(79,216,255,.28),0 30px 70px rgba(0,0,0,.7);
+  animation:updIn .34s cubic-bezier(.2,.9,.25,1.05)}
+@keyframes updIn{from{opacity:0;transform:translateY(26px) scale(.96)}to{opacity:1;transform:none}}
+.updhead{flex:none;display:flex;align-items:center;gap:10px;padding:14px 16px 12px;
+  border-bottom:1px solid rgba(79,216,255,.16)}
+.updhead .udot{width:9px;height:9px;border-radius:50%;background:#4fd8ff;flex:none;
+  box-shadow:0 0 12px #4fd8ff,0 0 26px rgba(79,216,255,.6);animation:updPulse 1.7s ease-in-out infinite}
+@keyframes updPulse{50%{opacity:.3}}
+.updhead .utitle{font-size:14.5px;font-weight:900;letter-spacing:.22em;
+  background:linear-gradient(92deg,#4fd8ff,#a06bff 50%,#ff4fa3);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.updhead .uclose{margin-left:auto;width:32px;height:32px;border-radius:10px;cursor:pointer;flex:none;
+  font-family:inherit;font-size:14px;line-height:1;color:#cfeaff;
+  background:rgba(79,216,255,.1);border:1px solid rgba(79,216,255,.32)}
+.updhead .uclose:active{transform:scale(.94)}
+.updbody{flex:1;min-height:46vh;background:transparent;overflow:hidden}
+.updbody iframe{display:block;width:100%;height:100%;min-height:46vh;border:0;background:transparent}
+.updfoot{flex:none;padding:12px 16px;text-align:center;border-top:1px solid rgba(79,216,255,.14)}
+.ubtn{font-family:inherit;cursor:pointer;padding:11px 32px;border-radius:12px;font-size:14px;font-weight:800;
+  letter-spacing:.12em;color:#04121c;border:0;
+  background:linear-gradient(180deg,#79e6ff,#3ec8ff);box-shadow:0 0 26px rgba(79,216,255,.5)}
+.ubtn:active{transform:scale(.97)}
+body.locked{overflow:hidden}
+@media(max-width:430px){
+  .updcard{max-height:88vh;border-radius:17px}
+  .updhead{padding:12px 13px 10px}
+  .updhead .utitle{font-size:13px;letter-spacing:.18em}
+  .updbody{min-height:52vh}
+  .updbody iframe{min-height:52vh}
+}
+</style>
+</head>
+<body>
+<div class="bg"><i></i><i></i><i></i></div>
+
+<div class="wrap">
+  <header>
+    <h1>游 戏 大 厅</h1>
+    <p>Game Hub · 本机游戏快速启动栏</p>
+  </header>
+
+  <!-- 公告栏（index4.html 内容在此滚动显示） -->
+  <div class="notice" id="notice">
+    <span class="nk">📢 公告</span>
+    <iframe class="nframe" src="./index4.html" scrolling="no" title="公告内容"></iframe>
+  </div>
+
+  <div class="bar">
+    <div class="search"><input id="q" type="search" placeholder="搜索游戏名 / 类型…" autocomplete="off"></div>
+    <span class="count" id="cnt"></span>
+  </div>
+
+  <div class="recent" id="recent">
+    <span class="rk">上次游玩</span>
+    <span id="rname" style="font-weight:800"></span>
+    <a class="rn" id="rgo" href="#">继 续 ▶</a>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <footer>
+    ⌨️ 键盘 <kbd>1</kbd>~<kbd>20</kbd> 直接快启 · <kbd>/</kbd> 聚焦搜索 · <kbd>Esc</kbd> 清空
+    <div class="acts">
+      <button id="btnReset" type="button">清空游玩统计</button>
+    </div>
+  </footer>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ============================================================
+   游戏列表：改这里就能增删游戏（hue = 卡片霓虹主色 0~360）
+   ★ 每一项 { } 之间必须有英文逗号，最后一项后面不要加逗号。
+   ============================================================ */
+var GAMES = [
+  { id:1,  href:'./1.html',  name:'霓虹逃生',   icon:'🎮', desc:'3D 霓虹生存射击，边跑边打', tag:'射击 · 生存', hue:190 },
+  { id:2,  href:'./2.html',  name:'五子棋',     icon:'⚪', desc:'五子连珠者胜，经典双人对弈', tag:'棋类 · 双人', hue:205 },
+  { id:3,  href:'./3.html',  name:'象棋',       icon:'🀄', desc:'中国象棋 · 楚河汉界',       tag:'棋类 · 双人', hue:0   },
+  { id:4,  href:'./4.html',  name:'飞行棋',     icon:'🎲', desc:'掷骰前进，抢先把棋子送回家', tag:'竞速 · 多人', hue:280 },
+  { id:5,  href:'./5.html',  name:'斗兽棋',     icon:'🐘', desc:'兽界斗争 · 弱肉强食',       tag:'棋类 · 双人', hue:130 },
+  { id:6,  href:'./6.html',  name:'跳棋',       icon:'🎱', desc:'弹珠跳格，最快占领对家阵地', tag:'棋类 · 多人', hue:45  },
+  { id:7,  href:'./7.html',  name:'军棋',       icon:'🎖️', desc:'司令军长暗棋对垒，工兵挖雷', tag:'棋类 · 双人', hue:95  },
+  { id:8,  href:'./8.html',  name:'跳一跳',     icon:'🕹️', desc:'一按一跳，看谁跳得更远',     tag:'休闲 · 单人', hue:25  },
+  { id:9,  href:'./9.html',  name:'2048',       icon:'🔢', desc:'滑动合并数字，冲击 2048',   tag:'益智 · 单人', hue:190 },
+  { id:10, href:'./10.html', name:'猜数字',     icon:'❓', desc:'猜中随机数，次数越少越强',   tag:'益智 · 单人', hue:205 },
+  { id:11, href:'./11.html', name:'打地鼠',     icon:'🔨', desc:'眼疾手快，敲准每一只地鼠',   tag:'休闲 · 单人', hue:0   },
+  { id:12, href:'./12.html', name:'打砖块',     icon:'🧱', desc:'反弹小球，清空全部砖块',     tag:'街机 · 单人', hue:280 },
+  { id:13, href:'./13.html', name:'打字游戏',   icon:'⌨️', desc:'看词打字，比拼手速与准确率', tag:'休闲 · 单人', hue:130 },
+  { id:14, href:'./14.html', name:'弹跳球',     icon:'🏀', desc:'控制弹跳，越弹越高分',       tag:'街机 · 单人', hue:45  },
+  { id:15, href:'./15.html', name:'俄罗斯方块', icon:'🧩', desc:'旋转堆叠方块，消行得分',     tag:'街机 · 单人', hue:95  },
+  { id:16, href:'./16.html', name:'反应力测试', icon:'⚡', desc:'测一测你的极限反应速度',     tag:'休闲 · 单人', hue:25  },
+  { id:17, href:'./17.html', name:'记忆翻牌',   icon:'🃏', desc:'记住牌面位置，成对翻开',     tag:'益智 · 单人', hue:190 },
+  { id:18, href:'./18.html', name:'井字棋',     icon:'⭕', desc:'三子连线，经典井字对弈',     tag:'棋类 · 双人', hue:205 },
+  { id:19, href:'./19.html', name:'跑酷躲避',   icon:'🏃', desc:'一路狂奔，躲开所有障碍',     tag:'街机 · 单人', hue:0   },
+  { id:20, href:'./20.html', name:'乒乓球',     icon:'🏓', desc:'来回对打，别让球落地',       tag:'街机 · 双人', hue:280 }
+];
+
+var STORE = 'hub_stats_v1';
+var stats = { plays: {}, last: 0 };
+try {
+  var raw = localStorage.getItem(STORE);
+  if (raw) {
+    var o = JSON.parse(raw);
+    if (o && typeof o === 'object') {
+      stats.plays = o.plays || {};
+      stats.last  = o.last  || 0;
+    }
+  }
+} catch (e) {}
+function saveStats(){ try { localStorage.setItem(STORE, JSON.stringify(stats)); } catch (e) {} }
+
+var grid    = document.getElementById('grid');
+var $q      = document.getElementById('q');
+var $cnt    = document.getElementById('cnt');
+var $recent = document.getElementById('recent');
+var $rname  = document.getElementById('rname');
+var $rgo    = document.getElementById('rgo');
+var toastT  = null;
+
+function toast(msg, ms){
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('on');
+  clearTimeout(toastT);
+  toastT = setTimeout(function(){ el.classList.remove('on'); }, ms || 1600);
+}
+
+function playsOf(id){ return stats.plays[id] || 0; }
+
+function gameById(id){
+  for (var i = 0; i < GAMES.length; i++) if (GAMES[i].id === id) return GAMES[i];
+  return null;
+}
+
+function render(){
+  var kw = ($q.value || '').trim().toLowerCase();
+
+  var list = GAMES.filter(function(g){
+    if (!kw) return true;
+    return (g.name + ' ' + g.desc + ' ' + g.tag).toLowerCase().indexOf(kw) >= 0;
+  });
+
+  /* 非搜索状态下：上次玩过的排最前 */
+  if (!kw){
+    list = list.slice().sort(function(a, b){
+      var la = (stats.last === a.id) ? 1 : 0;
+      var lb = (stats.last === b.id) ? 1 : 0;
+      if (la !== lb) return lb - la;
+      return a.id - b.id;
+    });
+  }
+
+  grid.innerHTML = '';
+
+  if (!list.length){
+    var d = document.createElement('div');
+    d.className = 'empty';
+    d.textContent = '没有匹配的游戏';
+    grid.appendChild(d);
+  }
+
+  list.forEach(function(g){
+    var a = document.createElement('a');
+    a.className = 'card' + (stats.last === g.id ? ' last' : '');
+    a.href = g.href;
+    a.style.setProperty('--h', g.hue);
+
+    var n = playsOf(g.id);
+    a.innerHTML =
+      '<span class="num">' + g.id + '</span>' +
+      '<span class="ico">' + g.icon + '</span>' +
+      '<span class="nm">' + g.name + '</span>' +
+      '<span class="ds">' + g.desc + '</span>' +
+      '<span class="tg">' + g.tag + '</span>' +
+      '<span class="meta">' + (n ? ('已启动 ' + n + ' 次' + (stats.last === g.id ? ' · 上次游玩' : '')) : '尚未启动过') + '</span>' +
+      '<span class="go">启 动 ▶</span>';
+
+    a.addEventListener('click', function(){
+      stats.plays[g.id] = playsOf(g.id) + 1;
+      stats.last = g.id;
+      saveStats();
+    });
+
+    grid.appendChild(a);
+  });
+
+  $cnt.textContent = kw
+    ? (list.length + ' / ' + GAMES.length + ' 个游戏')
+    : (GAMES.length + ' 个游戏');
+
+  var lg = gameById(stats.last);
+  if (lg){
+    $recent.classList.add('on');
+    $rname.textContent = lg.icon + ' ' + lg.name + '　已启动 ' + playsOf(lg.id) + ' 次';
+    $rgo.href = lg.href;
+    $rgo.onclick = function(){
+      stats.plays[lg.id] = playsOf(lg.id) + 1;
+      saveStats();
+    };
+  } else {
+    $recent.classList.remove('on');
+  }
+}
+
+$q.addEventListener('input', render);
+
+document.addEventListener('keydown', function(e){
+  var typing = (document.activeElement === $q);
+
+  if (e.key === 'Escape'){ $q.value = ''; $q.blur(); render(); return; }
+  if (e.key === '/' && !typing){ e.preventDefault(); $q.focus(); return; }
+  if (typing) return;
+
+  var n = parseInt(e.key, 10);
+  if (n >= 1 && n <= 9){
+    var g = gameById(n);
+    if (g){
+      stats.plays[g.id] = playsOf(g.id) + 1;
+      stats.last = g.id;
+      saveStats();
+      location.href = g.href;
+    }
+  }
+});
+
+/* ---- 按钮：单击 = 清空统计；长按 3 秒 = 跳转 index2.html ---- */
+var btnReset  = document.getElementById('btnReset');
+var LONG_MS   = 3000;
+var holdTimer = null;
+var longFired = false;
+
+function holdStart(e){
+  if (e.type === 'pointerdown' && e.button !== 0) return; // 只响应左键 / 触摸
+  longFired = false;
+  clearTimeout(holdTimer);
+  btnReset.classList.add('holding');
+  holdTimer = setTimeout(function(){
+    holdTimer = null;
+    longFired = true;                       // 标记：本次不是单击
+    btnReset.classList.remove('holding');
+    toast('进入社区资源模式…', 1200);
+    location.href = 'index2.html';          // 长按满 3 秒 → 跳转
+  }, LONG_MS);
+}
+
+function holdEnd(){
+  clearTimeout(holdTimer);
+  holdTimer = null;
+  btnReset.classList.remove('holding');
+}
+
+btnReset.addEventListener('pointerdown', holdStart);
+btnReset.addEventListener('pointerup', holdEnd);
+btnReset.addEventListener('pointerleave', holdEnd);   // 手指/鼠标移出即取消
+btnReset.addEventListener('pointercancel', holdEnd);
+btnReset.addEventListener('contextmenu', function(e){ e.preventDefault(); }); // 屏蔽手机长按菜单
+
+btnReset.addEventListener('click', function(e){
+  if (longFired){ longFired = false; e.preventDefault(); return; } // 长按已跳转，不再清空
+  stats.plays = {};
+  stats.last = 0;
+  saveStats();
+  render();
+  toast('游玩统计已重置');
+});
+
+render();
+</script>
+
+<!-- ================= 更新内容弹层（叠加在首页上层，内容来自 index3.html） ================= -->
+<div id="updOv" role="dialog" aria-modal="true" aria-label="更新内容">
+  <div class="updcard">
+    <div class="updhead">
+      <span class="udot"></span>
+      <span class="utitle">更 新 内 容</span>
+      <button class="uclose" id="updX" type="button" aria-label="关闭">✕</button>
+    </div>
+    <div class="updbody"><iframe id="updFrame" src="./index3.html" title="更新内容"></iframe></div>
+    <div class="updfoot"><button class="ubtn" id="updOk" type="button">我 知 道 了</button></div>
+  </div>
+</div>
+<script>
+/* ===== 打开首页时自动弹出「更新内容」弹层 =====
+   关闭方式：右上角 ✕ / 「我知道了」/ 点弹层外的暗色区域 / 按 Esc
+   不想自动弹出 → 把下面 AUTO_OPEN 改成 false 即可            */
+(function(){
+  var AUTO_OPEN = true;
+  var ov = document.getElementById('updOv');
+  function open(){
+    ov.classList.add('on');
+    document.body.classList.add('locked');
+  }
+  function close(){
+    ov.classList.remove('on');
+    document.body.classList.remove('locked');
+  }
+  document.getElementById('updX').addEventListener('click', close);
+  document.getElementById('updOk').addEventListener('click', close);
+  ov.addEventListener('click', function(e){ if (e.target === ov) close(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') close(); });
+  if (AUTO_OPEN) setTimeout(open, 260);
+})();
+</script>
+</body>
+</html>

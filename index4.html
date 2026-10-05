@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>公告 · NOTICE</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  background:transparent;color:#ffd7ef;overflow:hidden;
+  font-family:"Segoe UI",system-ui,-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:13px;font-weight:700;letter-spacing:.02em;
+  display:flex;align-items:center;
+  -webkit-tap-highlight-color:transparent;
+}
+/* 单独打开时的霓虹底 */
+html.standalone body{
+  background:linear-gradient(90deg,rgba(255,79,163,.14),rgba(79,216,255,.10));
+  height:auto;padding:10px 0;
+}
+/* ---- 跑马灯 ---- */
+.mq{display:flex;white-space:nowrap;will-change:transform;
+  animation:mq 26s linear infinite}
+.mq>span{padding-right:64px;
+  text-shadow:0 0 10px rgba(255,79,163,.65)}
+.mq b{color:#fff;text-shadow:0 0 12px rgba(79,216,255,.9)}
+.mq i{font-style:normal;color:#ffd166;text-shadow:0 0 12px rgba(255,209,102,.8)}
+@keyframes mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.mq{animation-duration:70s}}
+</style>
+</head>
+<body>
+<script>if (window.self === window.top) document.documentElement.classList.add('standalone');</script>
+
+<div class="mq" id="mq">
+  <span>
+    <i>📢</i> 欢迎来到游戏大厅，全部 <b>20 款游戏</b>免安装、点开即玩　·　
+    <i>🎮</i> 手机已全面适配：滑动 / 方向键 / 拖拽 / 点按都能玩　·　
+    <i>🆕</i> 首页新增<b>更新内容弹层</b>与公告栏，打开即可看到最新消息　·　
+    <i>💾</i> 游戏进度保存在本机浏览器，换设备不会同步　·　
+    <i>🕹️</i> 大厅支持<b>搜索</b>与<b>最近游玩</b>，找游戏更快　·　
+    <i>✉️</i> 有想玩的游戏或建议，欢迎反馈给管理员
+  </span>
+  <span aria-hidden="true">
+    <i>📢</i> 欢迎来到游戏大厅，全部 <b>20 款游戏</b>免安装、点开即玩　·　
+    <i>🎮</i> 手机已全面适配：滑动 / 方向键 / 拖拽 / 点按都能玩　·　
+    <i>🆕</i> 首页新增<b>更新内容弹层</b>与公告栏，打开即可看到最新消息　·　
+    <i>💾</i> 游戏进度保存在本机浏览器，换设备不会同步　·　
+    <i>🕹️</i> 大厅支持<b>搜索</b>与<b>最近游玩</b>，找游戏更快　·　
+    <i>✉️</i> 有想玩的游戏或建议，欢迎反馈给管理员
+  </span>
+</div>
+
+</body>
+</html>
