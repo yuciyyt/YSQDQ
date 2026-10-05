@@ -3,6 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script>
+/* ============================================================
+   防缓存自愈（关键，勿删）
+   如果这次是用「固定地址」打开的（很可能是 WebView 缓存页），
+   立刻换成「带时间戳」的地址重新加载一次 → 永远拿到云端最新版本
+   ============================================================ */
+(function () {
+  if (!/[?&]t=\d+/.test(location.search)) {
+    location.replace(location.pathname + '?t=' + Date.now() + location.hash);
+  }
+})();
+</script>
 <meta name="theme-color" content="#05070f">
 <title>游戏大厅 · GAME HUB</title>
 <style>
@@ -446,6 +458,14 @@ render();
   document.getElementById('updOk').addEventListener('click', close);
   ov.addEventListener('click', function(e){ if (e.target === ov) close(); });
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape') close(); });
+
+  /* 公告栏 & 更新内容也用防缓存地址加载 → 改完云端立刻生效 */
+  var _t = Date.now();
+  var nf = document.querySelector('.notice iframe');
+  if (nf) nf.src = './index4.html?t=' + _t;
+  var uf = document.getElementById('updFrame');
+  if (uf) uf.src = './index3.html?t=' + _t;
+
   if (AUTO_OPEN) setTimeout(open, 260);
 })();
 
